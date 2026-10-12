@@ -1,0 +1,6 @@
+anchor_year_group,rows_,pct_no_charttime,pct_scheduled,pct_no_storetime,pct_with_child_rows,pct_with_child_dose,pct_with_dose_due,pct_order_has_charted_rows,pct_generic_insulin,example_administration_type
+2008 - 2010,4892,0.0,100.0,0.0,98.4,98.4,81.4,96.0,99.7,Insulin SC Fixed Dose
+2011 - 2013,2690,0.0,100.0,0.0,98.1,98.1,79.0,97.1,99.8,Insulin SC Sliding Scale
+2014 - 2016,3949,0.0,100.0,0.0,98.1,98.1,84.2,97.0,99.5,Insulin SC Fixed Dose
+2017 - 2019,4543,0.0,100.0,0.0,97.4,97.4,75.3,97.7,99.8,Insulin SC Fixed Dose
+2020 - 2022,2468,0.0,100.0,0.0,96.6,96.5,64.8,97.6,99.6,Insulin SC Sliding Scale

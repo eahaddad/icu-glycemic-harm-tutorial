@@ -1,0 +1,22 @@
+module,itemid,label,fluid_or_category,category_or_type,results
+hosp.labevents,50931,Glucose,Blood,Chemistry,3621769
+hosp.labevents,51478,Glucose,Urine,Hematology,843478
+hosp.labevents,50809,Glucose,Blood,Blood Gas,281398
+hosp.labevents,51790,"Glucose, CSF",Cerebrospinal Fluid,Chemistry,15151
+hosp.labevents,51053,"Glucose, Pleural",Pleural,Chemistry,9195
+hosp.labevents,50842,"Glucose, Ascites",Ascites,Chemistry,7044
+hosp.labevents,51981,Glucose,Urine,Chemistry,1715
+hosp.labevents,52569,Glucose,Blood,Chemistry,1309
+hosp.labevents,51034,"Glucose, Body Fluid",Other Body Fluid,Chemistry,928
+hosp.labevents,51084,"Glucose, Urine",Urine,Chemistry,191
+hosp.labevents,51022,"Glucose, Joint Fluid",Joint Fluid,Chemistry,171
+hosp.labevents,51941,"Glucose, Stool",Stool,Chemistry,0
+hosp.labevents,52027,"Glucose, Whole Blood",Blood,Blood Gas,0
+icu.chartevents,225664,Glucose finger stick (range 70-100),Labs,Numeric,1024965
+icu.chartevents,220621,Glucose (serum),Labs,Numeric,584841
+icu.chartevents,226537,Glucose (whole blood),Labs,Numeric,204656
+icu.chartevents,229386,Cerebellar - Finger -> Nose,Neurological,Text,52110
+icu.chartevents,228692,Glucose Control - Prophy,MD Progress Note,Text,2829
+icu.chartevents,227015,Glucose_ApacheIV,Scores - APACHE IV (2),Numeric,8
+icu.chartevents,227016,GlucoseScore_ApacheIV,Scores - APACHE IV (2),Numeric,8
+icu.chartevents,228388,Glucose (whole blood) (soft),Labs,Numeric with tag,0

@@ -1,0 +1,170 @@
+itemid,label,category,unitname,rows_,stays,rows_with_rate,planned_class
+220952,Dextrose 50%,Fluids/Intake,mL,16333,7273,0,dextrose 50% (rescue)
+220949,Dextrose 5%,Fluids/Intake,mL,1234818,61375,779247,dextrose-containing fluid
+225823,D5 1/2NS,Fluids/Intake,mL,31267,9659,31011,dextrose-containing fluid
+225825,D5NS,Fluids/Intake,mL,6542,2363,6496,dextrose-containing fluid
+220950,Dextrose 10%,Fluids/Intake,mL,5429,1596,5424,dextrose-containing fluid
+225827,D5LR,Fluids/Intake,mL,3974,1134,3951,dextrose-containing fluid
+228140,Dextrose 20%,Fluids/Intake,mL,791,97,791,dextrose-containing fluid
+225941,D5 1/4NS,Fluids/Intake,mL,455,233,420,dextrose-containing fluid
+228142,Dextrose 40%,Fluids/Intake,mL,59,10,59,dextrose-containing fluid
+228141,Dextrose 30%,Fluids/Intake,mL,24,4,24,dextrose-containing fluid
+225919,D5 Aminosyn 3.5%,Nutrition - Supplements,mL,,,,dextrose-containing fluid
+220951,Dextrose 20.%,Fluids - Other (Not In Use),mL,,,,dextrose-containing fluid
+220963,"Dextrose 4,3% / Saline 0,18%",Fluids - Other (Not In Use),mL,,,,dextrose-containing fluid
+220964,"Dextrose 5% / Saline 0,9%",Fluids - Other (Not In Use),mL,,,,dextrose-containing fluid
+220965,"Dextrose 5% / Saline 0,45%",Fluids - Other (Not In Use),mL,,,,dextrose-containing fluid
+220966,"Dextrose 2,5% / Saline 0,45%",Fluids - Other (Not In Use),mL,,,,dextrose-containing fluid
+220967,Dextrose 5% / Ringers Lactate,Fluids - Other (Not In Use),mL,,,,dextrose-containing fluid
+220968,Dextrose 10% / Ringers Lactate,Fluids - Other (Not In Use),mL,,,,dextrose-containing fluid
+221000,Dextran 40 / Dextrose 5% (Gentran - Rheomacrodex),Fluids - Other (Not In Use),mL,,,,dextrose-containing fluid
+221002,Dextran 70 / Dextrose 5% (Gentran - Macrodex - RescueFlow),Fluids - Other (Not In Use),mL,,,,dextrose-containing fluid
+221014,Dextrose 19%,Fluids - Other (Not In Use),mL,,,,dextrose-containing fluid
+221017,"Dextrose 2,5%",Fluids - Other (Not In Use),mL,,,,dextrose-containing fluid
+228351,Nepro (Full),Nutrition - Enteral,mL,23090,2026,23090,enteral nutrition
+225936,Replete with Fiber (Full),Nutrition - Enteral,mL,20635,1845,20635,enteral nutrition
+229296,Vital High Protein (Full),Nutrition - Enteral,mL,20019,1422,20019,enteral nutrition
+229009,Promote (Full),Nutrition - Enteral,mL,17351,1450,17351,enteral nutrition
+229297,Osmolite 1.5 (Full),Nutrition - Enteral,mL,15811,1450,15811,enteral nutrition
+229011,Jevity 1.5 (Full),Nutrition - Enteral,mL,14831,1663,14831,enteral nutrition
+229014,Promote with Fiber (Full),Nutrition - Enteral,mL,13976,1380,13976,enteral nutrition
+229013,Glucerna 1.2 (Full),Nutrition - Enteral,mL,13963,1111,13963,enteral nutrition
+229295,Glucerna 1.5 (Full),Nutrition - Enteral,mL,13875,1107,13875,enteral nutrition
+229010,Jevity 1.2 (Full),Nutrition - Enteral,mL,13219,1367,13219,enteral nutrition
+225970,Beneprotein,Nutrition - Enteral,grams,8489,800,0,enteral nutrition
+227695,Fibersource HN (Full),Nutrition - Enteral,mL,6138,566,6138,enteral nutrition
+228135,Isosource 1.5 (Full),Nutrition - Enteral,mL,6088,674,6088,enteral nutrition
+226880,Nutren Pulmonary (Full),Nutrition - Enteral,mL,6004,503,6004,enteral nutrition
+228367,Two Cal HN (Full),Nutrition - Enteral,mL,5445,504,5445,enteral nutrition
+229012,Vital 1.5 (Full),Nutrition - Enteral,mL,4801,418,4801,enteral nutrition
+227975,NovaSource Renal (Full),Nutrition - Enteral,mL,4417,344,4417,enteral nutrition
+225931,Nutren 2.0 (Full),Nutrition - Enteral,mL,3976,396,3976,enteral nutrition
+225935,Replete (Full),Nutrition - Enteral,mL,3157,376,3157,enteral nutrition
+227979,Boost Glucose Control (Full),Nutrition - Enteral,mL,3125,235,3125,enteral nutrition
+228383,Peptamen Bariatric (Full),Nutrition - Enteral,mL,2787,229,2787,enteral nutrition
+228363,Pulmocare (Full),Nutrition - Enteral,mL,2483,229,2483,enteral nutrition
+225934,Vivonex (Full),Nutrition - Enteral,mL,2332,193,2332,enteral nutrition
+225930,Peptamen 1.5 (Full),Nutrition - Enteral,mL,2300,195,2300,enteral nutrition
+221036,Nutren Renal (Full),Nutrition - Enteral,mL,1850,157,1850,enteral nutrition
+228359,Glucerna (Full),Nutrition - Enteral,mL,1510,120,1510,enteral nutrition
+225937,Ensure (Full),Nutrition - Enteral,mL,883,316,314,enteral nutrition
+225928,Impact with Fiber (Full),Nutrition - Enteral,mL,592,78,592,enteral nutrition
+225929,ProBalance (Full),Nutrition - Enteral,mL,385,42,385,enteral nutrition
+226877,Ensure Plus (Full),Nutrition - Enteral,mL,212,77,94,enteral nutrition
+226051,Replete with Fiber (1/2),Nutrition - Enteral,mL,205,38,205,enteral nutrition
+221207,Impact (Full),Nutrition - Enteral,mL,175,23,175,enteral nutrition
+226050,Replete with Fiber (3/4),Nutrition - Enteral,mL,172,20,172,enteral nutrition
+226046,Replete (3/4),Nutrition - Enteral,mL,150,16,150,enteral nutrition
+228355,Enlive (Full),Nutrition - Enteral,mL,148,3,148,enteral nutrition
+226047,Replete (1/2),Nutrition - Enteral,mL,130,18,130,enteral nutrition
+227973,NovaSource Renal (1/2),Nutrition - Enteral,mL,130,16,130,enteral nutrition
+226031,Nutren Renal (1/2),Nutrition - Enteral,mL,121,10,121,enteral nutrition
+227518,Nutren 2.0 (3/4),Nutrition - Enteral,mL,83,8,83,enteral nutrition
+226030,Nutren Renal (3/4),Nutrition - Enteral,mL,64,5,64,enteral nutrition
+228131,Isosource 1.5 (1/2),Nutrition - Enteral,mL,64,9,64,enteral nutrition
+226038,Peptamen 1.5 (3/4),Nutrition - Enteral,mL,62,3,62,enteral nutrition
+226048,Replete with Fiber (1/4),Nutrition - Enteral,mL,59,10,59,enteral nutrition
+227974,NovaSource Renal (3/4),Nutrition - Enteral,mL,59,7,59,enteral nutrition
+227696,Fibersource HN (3/4),Nutrition - Enteral,mL,50,5,50,enteral nutrition
+226019,Nutren 2.0 (1/2),Nutrition - Enteral,mL,45,7,45,enteral nutrition
+226022,Impact (3/4),Nutrition - Enteral,mL,44,4,44,enteral nutrition
+226882,Nutren Pulmonary (1/2),Nutrition - Enteral,mL,43,6,43,enteral nutrition
+227698,Fibersource HN (1/2),Nutrition - Enteral,mL,42,5,42,enteral nutrition
+226045,Replete (2/3),Nutrition - Enteral,mL,38,5,38,enteral nutrition
+226039,Peptamen 1.5 (1/2),Nutrition - Enteral,mL,36,6,36,enteral nutrition
+226023,Impact (1/2),Nutrition - Enteral,mL,31,4,31,enteral nutrition
+226016,Nutren 2.0 (1/4),Nutrition - Enteral,mL,29,6,29,enteral nutrition
+226026,Impact with Fiber (3/4),Nutrition - Enteral,mL,29,1,29,enteral nutrition
+226049,Replete with Fiber (2/3),Nutrition - Enteral,mL,26,3,26,enteral nutrition
+226059,Vivonex (1/2),Nutrition - Enteral,mL,26,4,26,enteral nutrition
+227699,Fibersource HN (1/4),Nutrition - Enteral,mL,26,1,26,enteral nutrition
+228134,Isosource 1.5 (3/4),Nutrition - Enteral,mL,20,2,20,enteral nutrition
+228356,Glucerna (1/2),Nutrition - Enteral,mL,18,2,18,enteral nutrition
+226017,Nutren 2.0 (2/3),Nutrition - Enteral,mL,17,3,17,enteral nutrition
+226036,Peptamen 1.5 (1/4),Nutrition - Enteral,mL,17,2,17,enteral nutrition
+227977,Boost Glucose Control (1/2),Nutrition - Enteral,mL,17,1,17,enteral nutrition
+226044,Replete (1/4),Nutrition - Enteral,mL,14,3,14,enteral nutrition
+228364,Two Cal HN (1/2),Nutrition - Enteral,mL,14,2,14,enteral nutrition
+226881,Nutren Pulmonary (3/4),Nutrition - Enteral,mL,13,2,13,enteral nutrition
+228348,Nepro (1/2),Nutrition - Enteral,mL,12,3,12,enteral nutrition
+227978,Boost Glucose Control (3/4),Nutrition - Enteral,mL,11,1,11,enteral nutrition
+226020,Impact (1/4),Nutrition - Enteral,mL,10,1,10,enteral nutrition
+226027,Impact with Fiber (1/2),Nutrition - Enteral,mL,8,4,8,enteral nutrition
+226058,Vivonex (3/4),Nutrition - Enteral,mL,8,3,8,enteral nutrition
+228132,Isosource 1.5 (1/4),Nutrition - Enteral,mL,8,2,8,enteral nutrition
+226024,Impact with Fiber (1/4),Nutrition - Enteral,mL,3,2,3,enteral nutrition
+226028,Nutren Renal (1/4),Nutrition - Enteral,mL,3,1,3,enteral nutrition
+228133,Isosource 1.5 (2/3),Nutrition - Enteral,mL,2,1,2,enteral nutrition
+228360,Pulmocare (1/2),Nutrition - Enteral,mL,2,1,2,enteral nutrition
+226875,Ensure (3/4),Nutrition - Enteral,mL,1,1,1,enteral nutrition
+227976,Boost Glucose Control (1/4),Nutrition - Enteral,mL,1,1,1,enteral nutrition
+228361,Pulmocare (1/4),Nutrition - Enteral,mL,1,1,1,enteral nutrition
+226018,Nutren 2.0 (3/4),Nutrition - Enteral,mL,,,,enteral nutrition
+226021,Impact (2/3),Nutrition - Enteral,mL,,,,enteral nutrition
+226025,Impact with Fiber (2/3),Nutrition - Enteral,mL,,,,enteral nutrition
+226029,Nutren Renal (2/3),Nutrition - Enteral,mL,,,,enteral nutrition
+226037,Peptamen 1.5 (2/3),Nutrition - Enteral,mL,,,,enteral nutrition
+226040,ProBalance (1/4),Nutrition - Enteral,mL,,,,enteral nutrition
+226041,ProBalance (2/3),Nutrition - Enteral,mL,,,,enteral nutrition
+226042,ProBalance (3/4),Nutrition - Enteral,mL,,,,enteral nutrition
+226043,ProBalance (1/2),Nutrition - Enteral,mL,,,,enteral nutrition
+226056,Vivonex (1/4),Nutrition - Enteral,mL,,,,enteral nutrition
+226057,Vivonex (2/3),Nutrition - Enteral,mL,,,,enteral nutrition
+226876,Ensure (1/2),Nutrition - Enteral,mL,,,,enteral nutrition
+226878,Ensure Plus (3/4),Nutrition - Enteral,mL,,,,enteral nutrition
+226879,Ensure Plus (1/2),Nutrition - Enteral,mL,,,,enteral nutrition
+227091,Ensure (1/4),Nutrition - Enteral,mL,,,,enteral nutrition
+227092,Ensure Plus (1/4),Nutrition - Enteral,mL,,,,enteral nutrition
+227370,Peptamen VHP (Full),Nutrition - Enteral,mL,,,,enteral nutrition
+227371,Peptamen VHP (3/4),Nutrition - Enteral,mL,,,,enteral nutrition
+227372,Peptamen VHP (2/3),Nutrition - Enteral,mL,,,,enteral nutrition
+227373,Peptamen VHP (1/4),Nutrition - Enteral,mL,,,,enteral nutrition
+227374,Peptamen VHP (1/2),Nutrition - Enteral,mL,,,,enteral nutrition
+227697,Fibersource HN (2/3),Nutrition - Enteral,mL,,,,enteral nutrition
+227972,NovaSource Renal (1/4),Nutrition - Enteral,mL,,,,enteral nutrition
+228349,Nepro (1/4),Nutrition - Enteral,mL,,,,enteral nutrition
+228350,Nepro (3/4),Nutrition - Enteral,mL,,,,enteral nutrition
+228352,Enlive (1/2),Nutrition - Enteral,mL,,,,enteral nutrition
+228353,Enlive (1/4),Nutrition - Enteral,mL,,,,enteral nutrition
+228354,Enlive (3/4),Nutrition - Enteral,mL,,,,enteral nutrition
+228357,Glucerna (1/4),Nutrition - Enteral,mL,,,,enteral nutrition
+228358,Glucerna (3/4),Nutrition - Enteral,mL,,,,enteral nutrition
+228362,Pulmocare (3/4),Nutrition - Enteral,mL,,,,enteral nutrition
+228365,Two Cal HN (1/4),Nutrition - Enteral,mL,,,,enteral nutrition
+228366,Two Cal HN (3/4),Nutrition - Enteral,mL,,,,enteral nutrition
+229294,Ensure Clear (Full),Nutrition - Enteral,mL,,,,enteral nutrition
+223258,Insulin - Regular,Medications,units,337446,26814,158888,insulin
+223262,Insulin - Humalog,Medications,units,97298,16250,0,insulin
+223260,Insulin - Glargine,Medications,units,37251,13620,0,insulin
+223259,Insulin - NPH,Medications,units,10718,1722,0,insulin
+229299,Insulin - Novolog,Medications,units,1241,249,0,insulin
+223257,Insulin - 70/30,Medications,units,864,289,0,insulin
+223261,Insulin - Humalog 75/25,Medications,units,364,137,0,insulin
+229619,Insulin - U500,Medications,units,25,6,0,insulin
+229583,Beneprotein.,Nutrition - Supplements,mL,3089,487,0,"nutrition, other"
+229574,Fiber Supplement (i.e. Banana Flakes),Nutrition - Supplements,mL,1141,206,0,"nutrition, other"
+225994,Mighty Shake (Vanilla/Strawberry),Nutrition - Supplements,mL,23,12,0,"nutrition, other"
+225996,Mighty Shake (no sugar added),Nutrition - Supplements,mL,20,10,0,"nutrition, other"
+225995,Mighty Shake (Chocolate),Nutrition - Supplements,mL,18,7,0,"nutrition, other"
+225993,Optisource,Nutrition - Supplements,ounces,8,5,0,"nutrition, other"
+226000,Chocolate Scandi Shake (mixed),Nutrition - Supplements,mL,7,3,0,"nutrition, other"
+225991,Resource Fruit Beverage,Nutrition - Supplements,mL,5,3,0,"nutrition, other"
+225999,Vanilla Scandi Shake (mixed),Nutrition - Supplements,mL,2,1,0,"nutrition, other"
+226002,Vanilla Lactose Free Scandi Shake (mixed),Nutrition - Supplements,mL,2,1,0,"nutrition, other"
+222139,Potassium ACEtate,Nutrition - Supplements,mEq,,,,"nutrition, other"
+225918,Aminosyn 3.5%,Nutrition - Supplements,mL,,,,"nutrition, other"
+225921,Hepatamine,Nutrition - Supplements,mL,,,,"nutrition, other"
+225922,Nephramine,Nutrition - Supplements,mL,,,,"nutrition, other"
+225923,Folate,Nutrition - Supplements,mg,,,,"nutrition, other"
+225924,Hydrochloric Acid,Nutrition - Supplements,mEq,,,,"nutrition, other"
+225925,Potassium Phosphate,Nutrition - Supplements,mmol,,,,"nutrition, other"
+225926,Sodium ACEtate,Nutrition - Supplements,mEq,,,,"nutrition, other"
+225916,TPN w/ Lipids,Nutrition - Parenteral,mL,7855,1288,7855,parenteral nutrition
+225917,TPN without Lipids,Nutrition - Parenteral,mL,5323,1378,5323,parenteral nutrition
+225948,Amino Acids,Nutrition - Parenteral,grams,4498,859,0,parenteral nutrition
+225947,Dextrose PN,Nutrition - Parenteral,grams,4044,787,0,parenteral nutrition
+225969,Lipids (additive),Nutrition - Parenteral,grams,2345,474,0,parenteral nutrition
+225920,Peripheral Parenteral Nutrition,Nutrition - Parenteral,mL,398,175,398,parenteral nutrition
+225801,Lipids 20%,Nutrition - Parenteral,mL,173,49,173,parenteral nutrition
+222190,Ranitidine,Nutrition - Parenteral,mg,45,6,0,parenteral nutrition
+227090,Lipids 10%,Nutrition - Parenteral,mL,1,1,1,parenteral nutrition

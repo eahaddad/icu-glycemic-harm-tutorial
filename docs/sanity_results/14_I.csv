@@ -1,0 +1,7 @@
+drug_class,unit,child_rows,non_numeric,p50,p90,p99,p999,max_dose,zero_or_negative,over_100,over_200,over_1000,over_1e7
+insulin,units,924621,0,4.0,8.0,20.0,50.0,1.0010030338004904e+17,4954,87,37,14,10
+insulin,unit,456595,0,11.0,36.0,76.0,135.0,1500.0,562,1028,120,1,0
+insulin,,1323,212,2.0,20.0,70.0,215.0,300.0,491,4,2,0,0
+insulin,units humalog,187,0,4.0,10.0,22.0,22.0,22.0,3,0,0,0,0
+insulin,units regular,128,0,3.0,6.0,10.0,11.0,11.0,1,0,0,0,0
+oral agent,mg,21027,0,5.0,10.0,60.0,60.0,120.0,8,1,0,0,0

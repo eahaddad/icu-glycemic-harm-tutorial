@@ -1,0 +1,50 @@
+what,value,rows_,stays,pct_with_rate,mean_hours
+inputevents antibiotics,Vancomycin,140000,31127,0.0,0.02
+inputevents antibiotics,Cefepime,74821,13560,0.0,0.02
+inputevents antibiotics,Piperacillin/Tazobactam (Zosyn),69363,9595,0.0,0.02
+inputevents antibiotics,Metronidazole,65614,9310,0.0,0.02
+inputevents antibiotics,Meropenem,45642,4538,0.0,0.02
+inputevents antibiotics,Cefazolin,45552,13598,0.0,0.02
+inputevents antibiotics,Ceftriaxone,22154,9445,0.0,0.02
+inputevents antibiotics,Ciprofloxacin,18474,4605,0.0,0.02
+inputevents antibiotics,Ceftazidime,12870,2549,0.0,0.02
+inputevents antibiotics,Nafcillin,12561,696,0.0,0.02
+inputevents antibiotics,Ampicillin,12180,1728,0.0,0.02
+inputevents antibiotics,Acyclovir,11537,1896,0.0,0.02
+inputevents antibiotics,Piperacillin,11375,3225,0.0,0.02
+inputevents antibiotics,Ampicillin/Sulbactam (Unasyn),9262,1570,0.0,0.02
+inputevents antibiotics,Linezolid,7856,1302,0.0,0.02
+inputevents antibiotics,Clindamycin,6684,1288,0.0,0.02
+inputevents antibiotics,Levofloxacin,6074,2841,0.0,0.02
+inputevents antibiotics,Micafungin,5620,1345,0.0,0.02
+inputevents antibiotics,Azithromycin,5592,2762,0.0,0.02
+inputevents antibiotics,Fluconazole,5455,1529,0.0,0.02
+inputevents antibiotics,Bactrim (SMX/TMP),4964,993,0.0,0.02
+inputevents antibiotics,Aztreonam,3173,524,0.0,0.02
+inputevents antibiotics,Daptomycin,2772,903,0.0,0.02
+inputevents antibiotics,Gentamicin,2535,927,0.0,0.02
+inputevents antibiotics,Voriconazole,1939,315,0.0,0.02
+inputevents antibiotics,Penicillin G potassium,1929,150,0.0,0.02
+inputevents antibiotics,Tobramycin,1843,752,0.0,0.02
+inputevents antibiotics,Doxycycline,1751,433,0.0,0.02
+inputevents antibiotics,Imipenem/Cilastatin,1682,179,0.0,0.02
+inputevents antibiotics: order category,Drug Push,597237,51125,0.0,0.02
+inputevents antibiotics: order category,Non Iv Meds,19971,4970,0.0,0.02
+microbiologyevents specimen type,BLOOD CULTURE,347802,92229,0.0,
+microbiologyevents specimen type,URINE,153567,100413,0.0,
+microbiologyevents specimen type,MRSA SCREEN,64759,55610,0.0,
+microbiologyevents specimen type,STOOL,62856,36679,0.0,
+microbiologyevents specimen type,SPUTUM,47921,26228,0.0,
+microbiologyevents specimen type,SWAB,21702,17279,0.0,
+microbiologyevents specimen type,SEROLOGY/BLOOD,17950,14514,0.0,
+microbiologyevents specimen type,TISSUE,16187,10150,0.0,
+microbiologyevents specimen type,PERITONEAL FLUID,10175,6623,0.0,
+microbiologyevents specimen type,CSF;SPINAL FLUID,9633,5737,0.0,
+microbiologyevents specimen type,BRONCHOALVEOLAR LAVAGE,8211,5312,0.0,
+microbiologyevents specimen type,Rapid Respiratory Viral Screen & Culture,8113,6645,0.0,
+microbiologyevents specimen type,PLEURAL FLUID,7980,5951,0.0,
+microbiologyevents specimen type,CATHETER TIP-IV,7906,6136,0.0,
+microbiologyevents specimen type,Immunology (CMV),6400,4512,0.0,
+microbiologyevents specimen type,IMMUNOLOGY,6153,4669,0.0,
+microbiologyevents specimen type,ABSCESS,6087,4792,0.0,
+microbiologyevents specimen type,FLUID RECEIVED IN BLOOD CULTURE BOTTLES,5343,3848,0.0,

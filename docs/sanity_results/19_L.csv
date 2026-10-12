@@ -1,0 +1,5 @@
+what,rows_,pct_matched_in_other_source
+eMAR insulin boluses inside ICU stays,256463,46.2
+inputevents insulin boluses (rows without a rate),308314,37.5
+stays with an insulin drip in eMAR (Started),7569,79.7
+stays with an insulin drip in inputevents (rate rows),13378,45.1

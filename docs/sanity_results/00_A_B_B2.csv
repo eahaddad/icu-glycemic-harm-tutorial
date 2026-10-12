@@ -1,0 +1,71 @@
+module,itemid,label,fluid,category,expected
+hosp.labevents,50809,Glucose,Blood,Blood Gas,"glucose, blood gas analyser (label stream)"
+hosp.labevents,50813,Lactate,Blood,Blood Gas,lactate
+hosp.labevents,50852,% Hemoglobin A1c,Blood,Chemistry,hemoglobin A1c (%)
+hosp.labevents,50861,Alanine Aminotransferase (ALT),Blood,Chemistry,ALT
+hosp.labevents,50862,Albumin,Blood,Chemistry,albumin
+hosp.labevents,50868,Anion Gap,Blood,Chemistry,anion gap
+hosp.labevents,50878,Asparate Aminotransferase (AST),Blood,Chemistry,AST
+hosp.labevents,50882,Bicarbonate,Blood,Chemistry,bicarbonate
+hosp.labevents,50885,"Bilirubin, Total",Blood,Chemistry,"bilirubin, total"
+hosp.labevents,50893,"Calcium, Total",Blood,Chemistry,"calcium, total"
+hosp.labevents,50902,Chloride,Blood,Chemistry,chloride
+hosp.labevents,50912,Creatinine,Blood,Chemistry,creatinine
+hosp.labevents,50931,Glucose,Blood,Chemistry,"glucose, blood chemistry (label stream)"
+hosp.labevents,50960,Magnesium,Blood,Chemistry,magnesium
+hosp.labevents,50970,Phosphate,Blood,Chemistry,phosphate
+hosp.labevents,50971,Potassium,Blood,Chemistry,potassium
+hosp.labevents,50983,Sodium,Blood,Chemistry,sodium
+hosp.labevents,51006,Urea Nitrogen,Blood,Chemistry,urea nitrogen (BUN)
+hosp.labevents,51221,Hematocrit,Blood,Hematology,hematocrit
+hosp.labevents,51222,Hemoglobin,Blood,Hematology,hemoglobin
+hosp.labevents,51237,INR(PT),Blood,Hematology,INR
+hosp.labevents,51265,Platelet Count,Blood,Hematology,platelet count
+hosp.labevents,51301,White Blood Cells,Blood,Hematology,white blood cells
+hosp.labevents,52569,Glucose,Blood,Chemistry,"glucose, blood (label stream; confirm label)"
+icu.chartevents,220045,Heart Rate,,Routine Vital Signs,heart rate
+icu.chartevents,220050,Arterial Blood Pressure systolic,,Routine Vital Signs,arterial systolic BP
+icu.chartevents,220179,Non Invasive Blood Pressure systolic,,Routine Vital Signs,non-invasive systolic BP
+icu.chartevents,220210,Respiratory Rate,,Respiratory,respiratory rate
+icu.chartevents,220277,O2 saturation pulseoxymetry,,Respiratory,SpO2
+icu.chartevents,220621,Glucose (serum),,Labs,"glucose (serum), ICU chart copy of the lab value"
+icu.chartevents,220739,GCS - Eye Opening,,Neurological,"GCS, eye opening"
+icu.chartevents,223761,Temperature Fahrenheit,,Routine Vital Signs,"temperature, Fahrenheit"
+icu.chartevents,223762,Temperature Celsius,,Routine Vital Signs,"temperature, Celsius"
+icu.chartevents,223900,GCS - Verbal Response,,Neurological,"GCS, verbal response"
+icu.chartevents,223901,GCS - Motor Response,,Neurological,"GCS, motor response"
+icu.chartevents,224151,Effluent Pressure,,Dialysis,CRRT effluent pressure
+icu.chartevents,224153,Replacement Rate,,Dialysis,CRRT replacement rate
+icu.chartevents,224154,Dialysate Rate,,Dialysis,CRRT dialysate rate
+icu.chartevents,224639,Daily Weight,,General,daily weight (kg)
+icu.chartevents,225664,Glucose finger stick (range 70-100),,Labs,"glucose finger stick, ICU point-of-care"
+icu.chartevents,225977,Dialysate Fluid,,Dialysis,CRRT dialysate fluid
+icu.chartevents,226499,Hemodialysis Output,,Dialysis,"hemodialysis output, charted per session"
+icu.chartevents,226512,Admission Weight (Kg),,General,admission weight (kg)
+icu.chartevents,226537,Glucose (whole blood),,Labs,"glucose (whole blood), ICU"
+icu.chartevents,227290,CRRT mode,,Dialysis,CRRT mode (hourly while CRRT runs)
+icu.chartevents,228005,PBP (Prefilter) Replacement Rate,,Dialysis,CRRT prefilter replacement rate
+icu.chartevents,228006,Post Filter Replacement Rate,,Dialysis,CRRT post-filter replacement rate
+icu.chartevents,230085,Dialysate Fluid,,Dialysis,CRRT dialysate fluid (second item)
+icu.inputevents,221289,Epinephrine,mg,Medications,epinephrine
+icu.inputevents,221653,Dobutamine,mg,Medications,dobutamine
+icu.inputevents,221662,Dopamine,mg,Medications,dopamine
+icu.inputevents,221749,Phenylephrine,mg,Medications,phenylephrine
+icu.inputevents,221906,Norepinephrine,mg,Medications,norepinephrine
+icu.inputevents,221986,Milrinone,mg,Medications,milrinone
+icu.inputevents,222315,Vasopressin,units,Medications,vasopressin
+icu.inputevents,223258,Insulin - Regular,units,Medications,"insulin, regular (the drip item; boluses too)"
+icu.inputevents,223259,Insulin - NPH,units,Medications,"insulin, NPH"
+icu.inputevents,223260,Insulin - Glargine,units,Medications,"insulin, glargine"
+icu.inputevents,223261,Insulin - Humalog 75/25,units,Medications,"insulin, Humalog 75/25"
+icu.inputevents,223262,Insulin - Humalog,units,Medications,"insulin, Humalog (lispro)"
+icu.inputevents,225916,TPN w/ Lipids,mL,Nutrition - Parenteral,TPN with lipids
+icu.inputevents,225917,TPN without Lipids,mL,Nutrition - Parenteral,TPN without lipids
+icu.procedureevents,225441,Hemodialysis,None,4-Procedures,"hemodialysis (interval; 5,131 rows in v3.1)"
+icu.procedureevents,225792,Invasive Ventilation,None,2-Ventilation,invasive ventilation (interval)
+icu.procedureevents,225794,Non-invasive Ventilation,None,2-Ventilation,non-invasive ventilation (interval)
+icu.procedureevents,225802,Dialysis - CRRT,None,Dialysis,"dialysis, CRRT (interval; 5,399 rows)"
+icu.procedureevents,225803,Dialysis - CVVHD,None,Dialysis,"dialysis, CVVHD (dictionary only: 0 rows in v3.1)"
+icu.procedureevents,225805,Peritoneal Dialysis,None,Dialysis,peritoneal dialysis (interval; 792 rows)
+icu.procedureevents,225809,Dialysis - CVVHDF,None,Dialysis,"dialysis, CVVHDF (dictionary only: 0 rows)"
+icu.procedureevents,225955,Dialysis - SCUF,None,Dialysis,"dialysis, SCUF (dictionary only: 0 rows)"

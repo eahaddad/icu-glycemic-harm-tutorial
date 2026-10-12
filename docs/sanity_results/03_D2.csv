@@ -1,0 +1,36 @@
+event_txt,medication,n
+,Insulin,18483
+,Insulin (Regular) for Hyperkalemia,16
+,GlipiZIDE,14
+,GlyBURIDE,5
+,Tresiba U-100 Insulin,5
+,glimepiride,4
+,Lantus U-100 Insulin,3
+,GlipiZIDE XL,3
+ in Other Location,Insulin,3012
+ in Other Location,Insulin (Regular) for Hyperkalemia,10
+ in Other Location,GlipiZIDE,3
+ in Other Location,Insulin Glargine  (CVICU Protocol),3
+ in Other Location,GlyBURIDE,2
+ in Other Location,glimepiride,2
+ in Other Location,NovoLOG U-100 Insulin aspart,1
+ in Other Location,GlipiZIDE XL,1
+Confirmed,Insulin,58428
+Confirmed,insulin lispro (for Insulin PUMP),10
+Confirmed,subcutaneous insulin pump,9
+Confirmed,Insulin (Regular) for Beta Blocker Overdose,3
+Confirmed in Other Location,Insulin,79
+Delayed ,Insulin,51
+Delayed ,GlipiZIDE,2
+Delayed ,GlipiZIDE XL,2
+Delayed ,GlyBURIDE,1
+Delayed Confirmed,Insulin,24
+Documented in O.R. Holding,Insulin,11
+Partial Administered,Insulin,16
+Partial Administered,GlyBURIDE,1
+Restarted,Insulin,925
+Started,Insulin,10116
+Started,Insulin (Regular) for Beta Blocker Overdose,1
+Started,insulin pump controller,1
+Started,insulin lispro (for Insulin PUMP),1
+Started,subcutaneous insulin pump,1

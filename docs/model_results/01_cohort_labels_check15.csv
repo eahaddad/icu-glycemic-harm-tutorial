@@ -1,0 +1,4 @@
+split,landmark_rows,stays,admissions,subjects,pos_lt54,pct_lt54,pos_lt40,pos_cms816,pos_gt300,pct_gt300,rows_with_drip_24h,rows_drip_running_at_tk,mean_window_hours,short_windows,windows_under_6h
+test,21743,6215,5750,5219,219,1.01,57,51,2109,9.7,4849,1964,20.8,4991,1807
+test_shifted,17836,4416,4096,3884,187,1.05,49,45,1614,9.05,3270,1452,21.4,3471,1148
+train,88552,26538,24714,20280,1223,1.38,325,313,8480,9.58,19008,8287,20.6,21711,7936

@@ -1,0 +1,42 @@
+linksto,itemid,label,category,rows_,stays,mean_hours
+chartevents,226457,Ultrafiltrate Output,Dialysis,365849,3544,
+chartevents,224151,Effluent Pressure,Dialysis,341931,2906,
+chartevents,224154,Dialysate Rate,Dialysis,318185,2902,
+chartevents,224153,Replacement Rate,Dialysis,316017,2869,
+chartevents,228005,PBP (Prefilter) Replacement Rate,Dialysis,300423,2762,
+chartevents,228006,Post Filter Replacement Rate,Dialysis,295814,2705,
+chartevents,225977,Dialysate Fluid,Dialysis,275301,2503,
+chartevents,227290,CRRT mode,Dialysis,203035,2897,
+chartevents,225323,Dialysis Catheter Site Appear,Access Lines - Invasive,159884,5092,
+chartevents,226118,Dialysis Catheter placed in outside facility,Access Lines - Invasive,137933,4703,
+chartevents,227753,Dialysis Catheter Placement Confirmed by X-ray,Access Lines - Invasive,119040,3967,
+chartevents,225126,Dialysis patient,Adm History/FHPA,102972,46956,
+chartevents,229536,Dialysis Catheter Type,Access Lines - Invasive,81526,2715,
+chartevents,227357,Dialysis Catheter Dressing Occlusive,Access Lines - Invasive,64362,2422,
+chartevents,227124,Dialysis Catheter Type,Access Lines - Invasive,58812,2135,
+chartevents,230085,Dialysate Fluid,Dialysis,41462,412,
+chartevents,229881,Dialysis/Pheresis Biopatch,Access Lines - Invasive,38574,1177,
+chartevents,226499,Hemodialysis Output,Dialysis,7073,3225,
+chartevents,225953,Solution (Peritoneal Dialysis),Dialysis,3958,260,
+chartevents,225963,Peritoneal Dialysis Catheter Type,Dialysis,3437,242,
+chartevents,225951,Peritoneal Dialysis Fluid Appearance,Dialysis,3414,266,
+chartevents,225965,Peritoneal Dialysis Catheter Status,Dialysis,3376,295,
+chartevents,225810,Dwell Time (Peritoneal Dialysis),Dialysis,2218,255,
+chartevents,225952,Medication Added #1 (Peritoneal Dialysis),Dialysis,2043,126,
+chartevents,225725,Dialysis Catheter Tip Cultured,Access Lines - Invasive,1365,534,
+chartevents,225740,Dialysis Catheter Discontinued,Access Lines - Invasive,768,654,
+chartevents,225961,Medication Added Units #1 (Peritoneal Dialysis),Dialysis,484,37,
+chartevents,225959,Medication Added Amount  #1 (Peritoneal Dialysis),Dialysis,469,35,
+chartevents,227638,Medication Added #2 (Peritoneal Dialysis),Dialysis,418,20,
+chartevents,225956,Reason for CRRT Filter Change,Dialysis,350,267,
+chartevents,227640,Medication Added Units #2 (Peritoneal Dialysis),Dialysis,178,11,
+chartevents,227639,Medication Added Amount  #2 (Peritoneal Dialysis),Dialysis,141,5,
+chartevents,225954,Dialysis Access Type,Dialysis,18,5,
+inputevents,227536,KCl (CRRT),Medications,72419,2028,3.3
+inputevents,227525,Calcium Gluconate (CRRT),Medications,47378,2280,5.8
+inputevents,230044,Heparin Sodium (CRRT-Prefilter),Medications,66,8,18.5
+procedureevents,224270,Dialysis Catheter,Access Lines - Invasive,5504,4464,128.8
+procedureevents,225802,Dialysis - CRRT,Dialysis,5399,2274,56.5
+procedureevents,225441,Hemodialysis,4-Procedures,5131,2746,12.9
+procedureevents,225805,Peritoneal Dialysis,Dialysis,792,180,13.4
+procedureevents,225436,CRRT Filter Change,Dialysis,316,240,0.0

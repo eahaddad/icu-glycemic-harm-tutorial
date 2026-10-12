@@ -1,0 +1,4 @@
+how_closed,intervals,mean_hours,median_hours,p90_hours,over_96h,over_168h
+closed by Stopped,8175,21.9,15.5,41.7,216,64
+no stop before discharge,1809,180.7,120.75,364.45,1316,542
+closed by another Started,1055,28.4,6.0166666666666666,63.666666666666664,71,41

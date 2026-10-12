@@ -1,0 +1,21 @@
+feature,standardised_coefficient
+parenteral_running_at_tk,0.7361290269839222
+glucose_mean_24h,0.5586870930114257
+glucose_last,0.5048891882550206
+enteral_rate_at_tk__missing,-0.46573324523561677
+enteral_running_at_tk,0.463022720793198
+prior_dm,0.32567432221005316
+enteral_hours_24h,-0.3172315315182415
+drip_running_at_tk,-0.29498166251530744
+service_tk_CMED,0.2718137883232528
+steroid_24h,0.2673952073560702
+dextrose_fluid_running_at_tk,0.25375968256904824
+first_careunit_Surgery/Vascular/Intermediate,0.2532133550407367
+glucose_sd_24h,0.25141840807044064
+careunit_tk_Trauma SICU (TSICU),-0.22358796889757185
+temp_max_24h_c__missing,-0.2224541060384466
+hrs_since_drip_stop__missing,-0.21739544775782454
+service_tk_MED,0.20128557624210555
+rrt_at_tk,-0.2001361904309462
+invasive_vent_at_tk,-0.1933046140234053
+drip_hours_24h,0.1873824845724366

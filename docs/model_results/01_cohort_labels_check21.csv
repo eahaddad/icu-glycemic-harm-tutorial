@@ -1,0 +1,13 @@
+split,running_source,rows_,pct_rows_no_result_in_window,pct_rows_one_result,pct_rows_four_plus,mean_results_in_window,pos_lt54,pct_lt54,pos_gt300,pct_gt300
+test,emar only (stay without flowsheet drips),134,1.5,0.7,94.8,15.96,3,2.24,25,18.66
+test,inputevents,1830,0.8,0.7,96.7,16.77,34,1.86,153,8.36
+test,none,18957,5.3,6.1,75.9,4.82,176,0.93,1885,9.94
+test,"none (emar interval open, flowsheet stay)",822,7.9,11.7,64.2,6.93,6,0.73,46,5.6
+test_shifted,emar only (stay without flowsheet drips),858,1.7,2.4,90.6,13.93,23,2.68,83,9.67
+test_shifted,inputevents,594,0.3,0.5,97.3,15.82,15,2.53,73,12.29
+test_shifted,none,16161,4.4,5.0,77.2,4.8,146,0.9,1438,8.9
+test_shifted,"none (emar interval open, flowsheet stay)",223,7.6,10.8,68.2,7.65,3,1.35,20,8.97
+train,emar only (stay without flowsheet drips),378,1.3,2.1,91.5,15.42,5,1.32,52,13.76
+train,inputevents,7909,0.7,0.9,95.4,15.22,233,2.95,764,9.66
+train,none,79307,6.1,7.1,71.7,4.62,973,1.23,7580,9.56
+train,"none (emar interval open, flowsheet stay)",958,6.1,10.9,66.9,7.14,12,1.25,84,8.77

@@ -1,0 +1,6 @@
+anchor_year_group,landmark_rows,pct_with_drip,pct_drip_inputevents,pct_drip_emar,pct_drip_emar_only,pct_at_risk_only_through_emar_drip,pct_drip_running_at_tk,pct_running_emar_only_at_tk,pct_emar_open_declined_at_tk,emar_intervals,pct_closed_by_stopped,pct_closed_by_next_start,pct_closed_by_cap,hours_p50,hours_p90,confirmations_per_interval,evidence_gap_hours_p50_closed,evidence_gap_hours_p90_closed,evidence_gap_hours_p99_closed,pct_opened_by_confirmed_only,pct_overlapping_an_inputevents_drip
+2008 - 2010,41637,19.8,19.2,0.5,0.5,0.2,9.4,0.3,0.6,1394,66.0,13.4,20.6,16.0,45.0,5.2,6.5,9.2,12.4,5.2,79.6
+2011 - 2013,24190,22.0,21.1,0.9,0.9,0.4,9.1,0.6,0.6,902,67.1,12.7,20.2,16.4,48.1,5.9,6.7,9.3,11.8,4.5,77.2
+2014 - 2016,22725,24.0,23.0,1.0,1.0,0.4,9.5,0.5,2.5,2153,65.2,9.2,25.7,17.7,43.6,4.6,7.3,9.3,12.1,4.8,87.1
+2017 - 2019,21743,22.3,21.1,1.2,1.2,0.5,9.0,0.6,3.8,3469,74.5,6.7,18.8,17.1,45.2,4.6,7.0,9.3,12.3,4.3,90.9
+2020 - 2022,17836,18.3,8.1,10.3,10.3,3.7,8.1,4.8,1.3,2366,80.9,5.3,13.8,16.7,41.3,4.3,7.3,9.4,12.2,4.1,40.8

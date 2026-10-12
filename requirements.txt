@@ -1,0 +1,10 @@
+# Tested versions (11 October 2026). The notebook installs what Colab lacks (lightgbm, shap); a laptop installs all of it.
+pandas>=2.2
+pyarrow>=16                   # parquet
+matplotlib>=3.8
+numpy>=1.26
+scikit-learn>=1.5             # stage 3: logistic regression, grouped folds, metrics
+lightgbm==4.7.0               # stage 3: arm B
+shap==0.53.0                  # stage 3: TreeSHAP for arm B
+google-cloud-bigquery>=3.25   # pipeline/run_bigquery.py (preinstalled in Colab)
+db-dtypes>=1.2                # BigQuery results to pandas (preinstalled in Colab)

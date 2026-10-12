@@ -1,0 +1,32 @@
+event_txt,n,bolus_given,infusion_start,infusion_stop,held,ss_no_dose
+Administered,1393564,true,false,false,false,false
+Not Given per Sliding Scale,939382,false,false,false,false,true
+Not Given,178857,false,false,false,true,false
+Confirmed,58450,true,false,false,false,false
+,18542,false,false,false,false,false
+Started,10120,false,true,false,false,false
+Hold Dose,9266,false,false,false,true,false
+Stopped - Unscheduled,5648,false,false,true,false,false
+Delayed Administered,5041,true,false,false,false,false
+ in Other Location,3034,false,false,false,false,false
+Administered in Other Location,1871,true,false,false,false,false
+Not Started,1865,false,false,false,false,false
+Stopped,1767,false,false,true,false,false
+Not Confirmed,1293,false,false,false,false,false
+Stopped As Directed,947,false,false,true,false,false
+Restarted,925,false,true,false,false,false
+Stopped in Other Location,230,false,false,true,false,false
+Not Stopped,187,false,false,false,false,false
+Started in Other Location,133,false,true,false,false,false
+Delayed Started,124,false,true,false,false,false
+Not Started per Sliding Scale,113,false,false,false,false,false
+Confirmed in Other Location,79,true,false,false,false,false
+Delayed ,56,false,false,false,false,false
+Delayed Confirmed,24,true,false,false,false,false
+Stopped - Unscheduled in Other Location,20,false,false,true,false,false
+Partial Administered,17,true,false,false,false,false
+Not Stopped per Sliding Scale,12,false,false,false,false,false
+Documented in O.R. Holding,11,false,false,false,false,false
+Delayed Stopped,3,false,false,true,false,false
+Flushed,3,false,false,false,false,false
+Not Given per Sliding Scale in Other Location,3,false,false,false,false,true

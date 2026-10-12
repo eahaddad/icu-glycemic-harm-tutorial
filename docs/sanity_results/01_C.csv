@@ -1,0 +1,3 @@
+is_parent_row,rows_,distinct_emar_ids,has_dose_due,has_dose_given,has_numeric_dose_given,has_route,has_infusion_rate,has_product_description,has_administration_type
+false,1486460,1485288,0,1407524,1407291,0,0,94631,0
+true,2612499,2612499,2322735,0,0,0,27222,0,2612375

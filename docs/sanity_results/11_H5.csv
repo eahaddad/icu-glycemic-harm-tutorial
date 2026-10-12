@@ -1,0 +1,27 @@
+field,value,rows_,rows_with_null_careunit
+services.curr_service,MED,286528,
+services.curr_service,CMED,54452,
+services.curr_service,SURG,51640,
+services.curr_service,OMED,33549,
+services.curr_service,ORTHO,26991,
+services.curr_service,NMED,26709,
+services.curr_service,OBS,24923,
+services.curr_service,NSURG,16795,
+services.curr_service,CSURG,13421,
+services.curr_service,VSURG,12385,
+services.curr_service,PSYCH,9592,
+services.curr_service,TRAUM,8961,
+services.curr_service,GYN,7935,
+services.curr_service,GU,7083,
+services.curr_service,TSURG,5767,
+services.curr_service,PSURG,4427,
+services.curr_service,ENT,1798,
+services.curr_service,DENT,59,
+services.curr_service,EYE,54,
+services.curr_service,NBB,1,
+services.curr_service,NB,1,
+transfers.careunit (distinct count as rows_),all,46,
+transfers.eventtype,ED,784400,0
+transfers.eventtype,discharge,546024,0
+transfers.eventtype,admit,546010,0
+transfers.eventtype,transfer,537147,0

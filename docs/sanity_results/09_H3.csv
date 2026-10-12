@@ -1,0 +1,9 @@
+pattern,icd_version,rows_,distinct_codes,min_code,max_code
+CKD ICD-9 585% / ICD-10 N18%,,83232,17,5851,N189
+any code with a dot,,0,,,
+diabetes ICD-10 E10/E11/E13,10,100660,165,E1010,E139
+diabetes ICD-9 250%,9,78987,40,25000,25093
+heart failure ICD-9 428% / ICD-10 I50%,,112936,38,4280,I509
+hypoglycemia ICD-10 E16.0-2 / E1x.64x,10,5454,8,E10641,E162
+hypoglycemia ICD-9 251.0-251.2,9,706,2,2511,2512
+liver ICD-9 571% / ICD-10 K70-K77,,53336,68,5710,K77

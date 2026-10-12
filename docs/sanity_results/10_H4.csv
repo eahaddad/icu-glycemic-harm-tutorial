@@ -1,0 +1,14 @@
+result_name,rows_,numeric_values,p50
+Blood Pressure,2827801,0,
+Weight (Lbs),2145353,2145353,170.41
+BMI (kg/m2),1901496,1901496,28.0
+Height (Inches),814964,814963,65.25
+BMI,29021,29021,28.0
+Weight,15108,15108,170.0
+Blood Pressure Sitting,5757,0,
+Blood Pressure Standing (1 min),4704,0,
+Blood Pressure Lying,4359,0,
+Height,2365,2360,65.5
+Blood Pressure Standing (3 mins),1255,0,
+Blood Pressure Standing,565,0,
+eGFR,279,239,58.3

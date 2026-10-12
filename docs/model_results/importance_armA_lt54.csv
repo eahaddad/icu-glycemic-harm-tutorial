@@ -1,0 +1,21 @@
+feature,standardised_coefficient
+glucose_min_24h,-0.40983869758431235
+prior_dm,0.33564435265804166
+weight_kg_last,-0.31181462409033617
+insulin_basal_units_24h,0.2646323035806541
+enteral_running_at_tk,-0.26371839167234684
+enteral_rate_at_tk__missing,0.26332077406529303
+careunit_tk_Medical Intensive Care Unit (MICU),-0.25797038253632487
+glucose_last,-0.2567174585980435
+n_sc_from_inputevents_24h,-0.25300802138375295
+prior_hypoglycemia_dx,0.25142536105691826
+insulin_bolus_units_24h,0.24981223458495277
+drip_rate_at_tk,0.24541689912306724
+drip_rate_at_tk__missing,-0.23991699522703733
+hrs_since_drip_stop,-0.22221986412769099
+invasive_vent_at_tk,0.22169417428828744
+glucose_n_lt70_stay,0.22053903378053646
+drip_running_at_tk,0.21501817373212673
+glucose_min_stay,-0.20694490285570324
+parenteral_running_at_tk,-0.20633799554791088
+n_admin_any_24h,-0.19786066586027878

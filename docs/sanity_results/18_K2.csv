@@ -1,0 +1,17 @@
+label,ordercategorydescription,rateuom,amountuom,statusdescription,rows_,rows_with_rate,rate_p50,rate_p99,rate_max,amount_p50,amount_p99,amount_max,mean_hours
+Insulin - Regular,Drug Push,,units,FinishedRunning,176313,0,,,,4.0,18.0,1600.0,0.02
+Insulin - Regular,Continuous Med,units/hour,units,ChangeDose/Rate,125975,125975,4.0000567436218262,21.036664962768555,600.0,5.6991711035370827,49.200000733137131,322.5,1.9
+Insulin - Humalog,Drug Push,,units,FinishedRunning,97298,0,,,,4.0,20.0,223.0,0.02
+Insulin - Glargine,Drug Push,,units,FinishedRunning,37251,0,,,,20.0,70.0,180.0,0.02
+Insulin - Regular,Continuous Med,units/hour,units,Stopped,13760,13760,2.0012166500091553,15.0150146484375,510.0,5.5064358562231064,51.36953204870224,2316.6665782928467,3.16
+Insulin - NPH,Drug Push,,units,FinishedRunning,10718,0,,,,15.0,62.0,180.0,0.02
+Insulin - Regular,Continuous Med,units/hour,units,Paused,10607,10607,2.0032684803009033,15.969831466674805,341.9117431640625,4.4257626347243786,49.729401379823685,313.41910839080811,2.54
+Insulin - Regular,Continuous Med,units/hour,units,FinishedRunning,8369,8369,8.0017900466918945,171.03999328613281,3013.039794921875,13.934001550078392,100.00000521540642,500.00001287460327,2.87
+Insulin - Regular,Continuous IV,,units,FinishedRunning,1344,0,,,,23.111666083335876,119.66857466101646,155.00000263005495,21.73
+Insulin - Novolog,Drug Push,,units,FinishedRunning,1241,0,,,,5.0,20.0,64.0,0.02
+Insulin - 70/30,Drug Push,,units,FinishedRunning,864,0,,,,20.0,80.0,100.0,0.02
+Insulin - Regular,Continuous IV,,units,Stopped,616,0,,,,12.873522941954434,83.536502417176962,98.435278952121735,14.9
+Insulin - Humalog 75/25,Drug Push,,units,FinishedRunning,364,0,,,,20.0,75.0,100.0,0.02
+Insulin - Regular,Continuous Med,units/hour,units,Bolus,177,177,60.0,600.0,600.0,2.0,20.741642117500305,30.012566700577736,0.51
+Insulin - Regular,Continuous IV,,units,ChangeDose/Rate,175,0,,,,6.8601581384427845,84.462203867733479,100.21052956581116,10.19
+Insulin - Regular,Continuous IV,,units,Paused,110,0,,,,9.1728215664625168,78.177085295319557,88.996530011296272,12.9
