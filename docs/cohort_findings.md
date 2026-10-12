@@ -112,7 +112,7 @@ fact; the split by anchor year group is patient-disjoint but only approximately 
 event rates were looked at while the rules above were set. The verdicts and the corrections (release .20,
 with 01 tables 18 to 20) are in `docs/model_findings.md`, "The review of 12 October 2026".
 
-## The release .20 run (12 October 2026): the cohort after the corrections
+## The release .20 run (12 October 2026): the cohort after the corrections (superseded by the .22 run below)
 
 128,135 landmark rows (four more than the sixth run: eMAR intervals now counting at landmarks before a stay's
 first flowsheet segment), 37,170 stays, 29,384 patients; train 88,554 rows / 1,223 lows / 8,512 highs, test
@@ -125,6 +125,27 @@ training rows are anchor-year admissions, 18% certainly fall in 2017 or later; 7
 92.5% of shift test rows are anchor-year admissions), table 20 (vitals entered a median 22 minutes after
 their charttime, p90 96; insulin drip segments stored a median 1 minute after their start and 67 minutes
 before their end). The full reading is in `docs/model_findings.md`, "The release .20 run".
+
+## The release .22 run (12 October 2026): the cohort under the unfiltered label and the availability rules
+
+127,269 landmark rows (866 fewer than .20: the at-risk rule reads only exposure records entered before the
+landmark and rebuilds the eMAR state per landmark), 37,057 stays, 29,316 patients; train 87,761 rows / 1,234
+documented lows (1,216 after the repeat-result exclusion) / 8,466 highs, test 21,697 / 226 (218) / 2,115,
+shift test 17,811 / 190 (186) / 1,622; rows with an infusion running at t_k 10,837 against 11,718. Leakage
+assertion 0 of 127,269; Table 1b 11.35%, 941 straddling rows. Table 18 unchanged. Table 19: 52.0% of the
+training rows are anchor-year admissions, 17.7% certainly fall in 2017 or later; 77.7% of the primary test
+rows (152 of 226 events) and 92.6% of the shift rows (163 of 190) are anchor-year admissions. Table 20 now
+covers every record kind: feed segments enter a median 28 minutes after their start (p90 12.5 hours),
+ventilation intervals a median 26.8 hours after their start and 3 minutes after their end, dialysis
+intervals 6.6 hours after their start, microbiology rows 3.0 days after collection. Table 21, the audit of
+what the rule withholds at the landmarks: 25.3% of the insulin drip segments running at t_k had not been
+entered (2,608 rows lose the record), 2.0% of look-back segments, 3.0% of flowsheet boluses, 0.5% of eMAR
+doses, 1.4% of eMAR infusion events, 4.1% of vasopressor and 2.7% of antibiotic segments, 7.9% of dialysis
+intervals, 57.9% of the feed and dextrose segments running at t_k, 99.5% of the ventilation intervals (the
+procedureevents row is written when the procedure ends), and 1,940 rate changes written after the landmark.
+Table 11: dialysis at t_k 4.36% against 8.06% in .20, the one-hour tail after the last visible CRRT charting
+being conservative under a 22-minute entry lag (the next release lengthens it to the island gap). Tables 7,
+12, 13, 15 and 17 read as before. The full reading is in `docs/model_findings.md`, "The release .22 run".
 
 ## What changed in the files, in one list
 
@@ -190,3 +211,9 @@ After the second review (release .22, 12 October 2026; `docs/model_findings.md` 
 - `01_cohort_labels.sql`: the landmark grid as a table (`landmark_grid`, with the per-landmark flowsheet flag from segments both started and entered before t_k); the drip record as each landmark could see it (`emar_insulin_events`, `emar_drips_at_landmark`, `drips_at_landmark`: visibility by storetime, the end known only when the data timestamps it, amount-derived rates for complete segments, the eMAR state rebuilt from the visible events, the cap binding over a late Stopped) and the dialysis record likewise (`rrt_at_landmark`); storetime through every treatment view and `end_storetime` on `icu_insulin` and `icu_nutrition`; the at-risk rule on the visible records under the both-times rule; the primary label unfiltered, `y_lt54_excl_24h` as the sensitivity endpoint, `y_lt40_24h` unfiltered, the CMS816 label with CMS's own conditions and its numerator read from the static records; tables 20 (procedureevents, feeds, boluses, antibiotics and microbiology added) and 21 (what the rule withholds at the landmarks); the check tables named after their headers (`table01` to `table21`); `insulin_drips` and `is_first_start_in_stay` removed.
 - `02_features.sql`: every treatment join gated by entry time; the drip features from `drips_at_landmark`, the dialysis features from `rrt_at_landmark`, the antibiotic first start per landmark; no feature-side glucose exclusion; deterministic tiebreakers on every last-value window; the fifth label carried.
 - `src/hypo_tutorial/columns.py`: `y_lt54_excl_24h` among the labels. `pipeline/run_bigquery.py`: the check-table naming. `tests/`: `make_synthetic.py`, `run_pipeline.py`, `prefix_invariance.py` in the repository.
+
+What the .22 run then showed is above ("The release .22 run"); what stays open for the next release: the ventilation
+feature from the hourly ventilator settings in chartevents (a new extract), the dialysis tail at the island gap,
+the Drive results folder emptied of check tables before a run copies its own in (the .22 zip carried the .20
+run's `check15` to `check34` next to `table01` to `table21`), and the runner's timing printout kept in the
+results folder.

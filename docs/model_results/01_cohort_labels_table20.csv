@@ -1,0 +1,17 @@
+kind,rows_,pct_stored_after,pct_stored_more_than_1h_after,lag_p50_min,lag_p90_min,lag_p99_min
+chartevents: GCS,4532660,80.09,32.49,29,153,406
+chartevents: glucose,1814462,86.52,25.11,26,88,239
+chartevents: vitals,25579647,96.28,21.01,22,96,259
+chartevents: weight,305718,81.27,27.84,21,186,4086
+"emar: insulin event, store - chart",635162,50.35,12.04,1,74,319
+"inputevents: antibiotic segment, store - start",437324,45.07,17.84,0,120,447
+"inputevents: feed or dextrose rate segment, store - end",849758,31.88,12.75,-20,80,378
+"inputevents: feed or dextrose rate segment, store - start",849758,70.74,41.03,28,750,1629
+"inputevents: insulin bolus, store - start",317188,44.57,18.29,0,125,449
+"inputevents: insulin drip segment, store - end",157446,10.51,3.2,-67,2,163
+"inputevents: insulin drip segment, store - start",157446,53.46,13.93,1,83,616
+"microbiologyevents: specimen row, store - chart",484517,100.0,99.92,4257,8956,60781
+"procedureevents: dialysis interval, store - end",9125,62.42,33.45,16,433,3772
+"procedureevents: dialysis interval, store - start",9125,94.25,82.95,396,6062,16060
+"procedureevents: ventilation interval, store - end",26962,72.64,16.85,3,196,2444
+"procedureevents: ventilation interval, store - start",26962,99.68,98.77,1605,13284,39886

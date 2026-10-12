@@ -22,7 +22,8 @@ expiry and lifetime storage quota stop mattering.
 
 What each step costs (measured 11 October 2026, README cost table). extract:
 29.1 GiB of query bytes by the per-column rule (free tier 1 TiB a month) and
-2.47 GiB of the sandbox's lifetime 10 GiB storage, so it refuses to run when
+2.47 GiB of the sandbox's lifetime 10 GiB storage (2.78 GiB since the entry-time
+columns of release .20, by the extract's own size table), so it refuses to run when
 the src_* tables already exist unless --force is given. pipeline: 01 4.5 GiB
 with thirteen check tables (about 5.5 with fifteen) and 02 5.4 GiB per run
 (two of its check queries recompute the features view), no storage beyond the
@@ -212,15 +213,15 @@ def main():
                 if "storetime" not in fields:
                     sys.exit("the src_* tables in this project are from a release before .20 (src_inputevents has no "
                              "storetime column, which 01 and 02 now read). Run this step again with --force: it rewrites "
-                             "every src_* table (about 2.5 GiB of a sandbox's lifetime 10 GiB; nothing on a project "
+                             "every src_* table (about 2.8 GiB of a sandbox's lifetime 10 GiB; nothing on a project "
                              "with billing). In the notebook, set EXTRACT_FORCE to True for one run.")
                 sys.exit("src_* tables already exist in this project; 00b must not run twice on a sandbox "
-                         "(each run spends about 2.5 GiB of the lifetime 10 GiB). Skip to --step pipeline. "
+                         "(each run spends about 2.8 GiB of the lifetime 10 GiB). Skip to --step pipeline. "
                          "Use --force only if you mean to rewrite them.")
             if first and not last:
                 sys.exit("a previous extract stopped partway (src_chartevents exists, src_microbiologyevents does not). "
                          "Run this step again with --force: it rewrites every src_* table, which this project can afford "
-                         "once more (about 2.5 GiB of the lifetime 10 GiB per run).")
+                         "once more (about 2.8 GiB of the lifetime 10 GiB per run).")
         storage_probe(client, args.project)
     if args.step in STEPS:
         files = list(STEPS[args.step])

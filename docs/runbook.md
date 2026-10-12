@@ -43,7 +43,7 @@ Three rules before anything else:
 
 Cost: nothing. Query bytes are free up to 1 TiB a month; the whole tutorial uses about 48 GiB (29.1 extract measured before release .20 plus about 3 for the entry-time columns, 11.4 pipeline, 3.0 pull).
 
-## 1. The notebook, stage by stage (first run about an hour, later runs 15 to 35 minutes)
+## 1. The notebook, stage by stage (the modeling stage took 34 minutes in the release .22 run; the data stage adds minutes on a first run)
 
 Open colab.research.google.com, File, Open notebook, the GitHub tab, paste the repository's address and
 pick `notebooks/hypo_harm_tutorial.ipynb` (from a zip instead: File, Upload notebook, the same file from
@@ -69,47 +69,50 @@ on BigQuery` or `skipped, features.parquet is present`.
 | `# 1.1 Sign in` | `auth.authenticate_user()` with the PhysioNet-linked account, then `--step cost` | the month's query bytes and the dataset's storage, both 0 on a fresh project |
 | `# 1.2 Extract` | `00b_extract.sql` once, the `src_*` tables (on a project whose extract predates release .20 the runner says so: set `EXTRACT_FORCE` in the setup cell for one run, which rewrites them) | one line per statement with bytes billed; the first real run billed 29.1 GiB and stored 2.47 GiB, and release .20 stores 2.78 GiB (the entry-time columns); the last statement prints rows and GiB per table. Minutes, not hours. On a project that already holds the extract the cell prints "already in this project; going on" |
 | `# 1.3 Pipeline` | `01` (39 statements: the params row, the views, the two landmark tables, twenty-one check tables) and `02` (4 statements) | bytes per statement; about 6 GiB and a few minutes for each file (the .20 run: 6.0 GiB and 100 s for `01`, 5.4 GiB and 40 s for `02`; the per-landmark views of release .22 add compute, not bytes; less when BigQuery's result cache serves a repeated statement); `02`'s first check table must say `rows_violating_leakage_rule 0` |
-| `# 1.4 Pull` | `params`, `cohort_landmarks`, `features` to parquet, copied to Drive with the check tables | `3 parquet files, 256,271 rows` (the .20 run), then `28 MB of parquet and 25 check tables under MyDrive/hypo_tutorial/` and the three file sizes (`features.parquet 23.1 MB`) |
+| `# 1.4 Pull` | `params`, `cohort_landmarks`, `features` to parquet, copied to Drive with the check tables | `3 parquet files, 254,539 rows` (the .22 run: the params row and 127,269 rows in each of the two tables), then `... MB of parquet and 25 check tables under MyDrive/hypo_tutorial/` and the three file sizes. The count is higher when the Drive folder still holds an earlier release's check tables: the .22 run's zip carried the .20 run's `check15` to `check34` next to the new `table01` to `table21`, because the folder is packed as it stands; delete the old ones from `MyDrive/hypo_tutorial/results/` before a rerun |
 
 When the data stage is skipped, each of the four cells prints `data stage skipped` and nothing else.
 
 Numbers to compare with (MIMIC-IV v3.1 as of October 2026; `docs/cohort_findings.md` has the rest):
 `results/01_cohort_labels_table01.csv` (table 1 of `01`; since release .22 the check tables are named after
 their `-- Table N.` headers, `table01` to `table21`, so a view added to the file no longer renames them)
-must show, for the release .20 run, train 88,554 rows / 26,538 stays / 1,223 glucose < 54 / 8,512 > 300,
-test 21,744 / 6,215 / 218 / 2,116, test_shifted 17,837 / 4,417 / 187 / 1,624, 128,135 rows in all. Release
-.22 changes the primary label (every documented low counts; `pos_lt54_excl` is the old definition) and the
-availability rules, so its rerun moves these counts; the rerun's numbers replace them here.
+must show, for the release .22 run, train 87,761 rows / 26,434 stays / 20,221 patients / 1,234 glucose < 54
+(1,216 after the repeat-result exclusion, `pos_lt54_excl`) / 8,466 > 300, test 21,697 / 6,210 / 5,214 / 226
+(218) / 2,115, test_shifted 17,811 / 4,413 / 3,881 / 190 (186) / 1,622; 127,269 rows in all (the .20 run had
+128,135: the at-risk rule now reads only exposure records entered before the landmark and rebuilds the eMAR
+state per landmark, which removed 866 rows; the unfiltered primary label added the contradicted lows to the
+event counts).
 `02_features_check01.csv` must be 0. `01` prints 21 check tables and `02` three (`02_features_check01.csv`
 to `check03.csv`).
 
 If the pipeline or the pull fails halfway (a dropped Colab session, a quota message), fix the cause and run
 that cell again: both are written to be repeated. The extract is the exception: a complete extract refuses to
-run twice (it would spend another 2.5 GiB of the lifetime storage) and the cell goes on, and an extract that
+run twice (it would spend another 2.78 GiB of the lifetime storage) and the cell goes on, and an extract that
 stopped partway is recognised by the runner, which tells you to run it again with `--force` (add it to the
 `run_step('extract')` call once); the project can afford that once.
 
-### Stage 2, cohort and labels (eight cells, a minute)
+### Stage 2, cohort and labels (eight cells, under a minute)
 
-`# 2.0` loads the parquet and prints `landmark rows 128,135   feature rows 128,135 x 175 columns` (175 =
-145 inputs, 5 labels, 25 bookkeeping; the .20 run had 128,135 rows and 174 columns). `2.1` to `2.6` recompute the cohort tables (they must equal
+`# 2.0` loads the parquet and prints `landmark rows 127,269   feature rows 127,269 x 172 columns` (172 =
+145 inputs and 27 bookkeeping columns, the 5 labels among them). `2.1` to `2.6` recompute the cohort tables (they must equal
 `table01`), the censoring profile, the leakage assertion on every row (0), missingness and monitoring
 density. `2.7` writes the `eda_*.csv` tables next to the check tables.
 
-### Stage 3, the models (nine cells, ten to thirty-five minutes measured)
+### Stage 3, the models (nine cells; 33.5 minutes in the .22 run, by the timestamps of its result files)
 
 | cell | what it does | what you should see |
 |---|---|---|
-| `# 3.1` | loads, checks column roles, defines the splits | `128,135 rows, 29,384 subjects, 145 input columns, 25 bookkeeping columns` (the .20 run) and the three-split table |
+| `# 3.1` | loads, checks column roles, defines the splits | `127,269 rows, 29,316 subjects, 145 input columns, 27 bookkeeping columns` and the three-split table |
 | `# 3.2` | fits the feature preparation on the training rows | the matrix size and the cut-point table |
-| `# 3.3` | fits arm A (logistic, C by grouped CV) and arm B (LightGBM, early stopping) for both outcomes; Platt on the out-of-fold predictions | `arm A: C = 0.03` for both outcomes; arm B 175 trees (< 54) and 369 (> 300); seven to 32 minutes measured (the preparation is refitted inside every fold since release .20), the slowest part |
-| `# 3.4` | evaluation on both test eras with 16 bootstraps of 1,000 subject draws, subgroups, operating points, decision curves | the headline table; one to two minutes |
-| `# 3.5` to `# 3.8` | figures, importance, subgroup prints, five sensitivities (the fifth refits arm B on the repeat-excluded endpoint, a few minutes more) | PNGs under `results/figures/`; the sensitivities table |
+| `# 3.3` | fits arm A (logistic, C by grouped CV) and arm B (LightGBM, early stopping) for both outcomes; Platt on the out-of-fold predictions | `arm A: C = 0.01` for < 54 and `0.03` for > 300; arm B 153 trees (< 54; the folds stopped at 158, 137, 124, 184, 162) and 402 (> 300); 26 minutes in the .22 run (9.6 for the < 54 cross-validation, 16.5 for > 300; the preparation is refitted inside every fold since release .20), the slowest part |
+| `# 3.4` | evaluation on both test eras with 16 bootstraps of 1,000 subject draws, subgroups, operating points, decision curves | the headline table; about two minutes (2.2 in the .22 run) |
+| `# 3.5` to `# 3.8` | figures, importance, subgroup prints, five sensitivities (the fifth refits arm B on the repeat-excluded endpoint, a few minutes more) | PNGs under `results/figures/`; the sensitivities table (the figures and importance took 0.7 minutes in the .22 run, the five sensitivities 4.5) |
 | `# 3.9` | library versions, `run_settings.json` | the version dict |
 
-Headline to compare with (`docs/model_results/headline_metrics.csv`, the release .20 run): arm B AUROC 0.865 on
-the patients anchored in 2017 to 2019 and 0.855 on those anchored in 2020 to 2022 for glucose < 54; 0.895 and
-0.880 for > 300; arm A 0.839 and 0.826.
+Headline to compare with (`docs/model_results/headline_metrics.csv`, the release .22 run): arm B AUROC 0.863 on
+the patients anchored in 2017 to 2019 and 0.852 on those anchored in 2020 to 2022 for glucose < 54; 0.892 and
+0.880 for > 300; arm A 0.836 and 0.826 (< 54), 0.880 and 0.868 (> 300). The fifth sensitivity, arm B refitted
+on the repeat-excluded endpoint, gives 0.860 and 0.849.
 Arm B reproduces to the last digit on any machine (`deterministic=True`); arm A to three decimals (its
 L-BFGS fit runs at a tight tolerance since release .13). Library versions can still move the last digit;
 `run_settings.json` records yours.
@@ -118,7 +121,7 @@ L-BFGS fit runs at a tight tolerance since release .13). Library versions can st
 
 `# 4.` packs `results/` into one zip on the runtime's disk (the check tables, the cohort tables, the model
 tables and figures), copies it to Drive, flushes Drive, and downloads it to your computer:
-`results_<release>_<stamp>.zip: 58 files, ... MB` and a browser download. That zip is the thing you share
+`results_<release>_<stamp>.zip: 57 files, ... MB` and a browser download (more when the Drive folder still holds an earlier release's check tables, see stage 1). That zip is the thing you share
 or hand in. Do not download the `results/` folder from the Drive website right after the run: on the first
 real run the `figures/` folder came back empty because Drive had not finished syncing.
 
@@ -161,6 +164,6 @@ real run the `figures/` folder came back empty because Drive had not finished sy
 | the `figures/` folder is empty in a download from Drive | Drive had not synced when you downloaded | use the zip from stage 4, or wait for the Drive sync icon to finish |
 | `pip` fails to install lightgbm or shap in the setup cell | a transient network error in Colab | run the cell again |
 | a cohort number differs from the list in step 1 | a different MIMIC-IV version or a changed DECLARE | the SQL names `mimiciv_3_1` explicitly; compare `params.parquet` (the DECLAREs the run used) with `docs/cohort_findings.md` |
-| the evaluation cell (`# 3.4`) is slow | release .8, whose bootstrap refitted scikit-learn in every draw | use the current release; the same cell takes about a minute. A GPU runtime does not help: nothing here runs on a GPU |
+| the evaluation cell (`# 3.4`) is slow | release .8, whose bootstrap refitted scikit-learn in every draw | use the current release; the same cell took 2.2 minutes in the .22 run. A GPU runtime does not help: nothing here runs on a GPU |
 | the model numbers differ from the documented run in the third decimal | a parquet pulled before release .15 (no fixed row order, so different folds), or different library versions | re-run with the current release: it sorts the rows before the folds, and `run_settings.json` records the versions; two decimals of agreement is what two installations of the same data should show |
 | the subgroup table shows `other (levels under 100 rows)` and blank counts | by design: small levels are pooled and cells under 10 events carry no count, so the file can be shared as it is | nothing; the deck uses the same rule |

@@ -1,21 +1,21 @@
 feature,standardised_coefficient
-parenteral_running_at_tk,0.7499327563307899
-glucose_mean_24h,0.5587229284723573
-glucose_last,0.5003056331981153
-enteral_rate_at_tk__missing,-0.4641411581443332
-enteral_running_at_tk,0.4625906577978223
-prior_dm,0.3260116889133115
-enteral_hours_24h,-0.3156555844351009
-drip_running_at_tk,-0.29390702644569683
-service_tk_CMED,0.2767778576449177
-steroid_24h,0.26817970705363947
-first_careunit_Surgery/Vascular/Intermediate,0.255198089863006
-dextrose_fluid_running_at_tk,0.2518980406500986
-glucose_sd_24h,0.24959169661723093
-temp_max_24h_c__missing,-0.2358577872671518
-hrs_since_drip_stop__missing,-0.21780382878462784
-careunit_tk_Trauma SICU (TSICU),-0.20576592217280978
-rrt_at_tk,-0.2050598647139411
-service_tk_MED,0.2042647897910643
-invasive_vent_at_tk,-0.1964943576368802
-drip_hours_24h,0.18635955048528574
+glucose_mean_24h,0.5569822440029
+glucose_last,0.5053622681198728
+prior_dm,0.31756392671688266
+enteral_rate_at_tk__missing,-0.31182250341700307
+enteral_running_at_tk,0.31115336151632433
+drip_running_at_tk,-0.29833332492821285
+parenteral_running_at_tk,0.28142813555384794
+temp_max_24h_c__missing,-0.27519717875288036
+steroid_24h,0.25928340941834227
+service_tk_CMED,0.2558365829311253
+first_careunit_Surgery/Vascular/Intermediate,0.24914929256829318
+glucose_sd_24h,0.23405602985224433
+drip_rate_at_tk,-0.21704103375922287
+careunit_tk_Trauma SICU (TSICU),-0.21529956346047327
+drip_hours_24h,0.2079090116153492
+service_tk_MED,0.1999017363443699
+hrs_since_drip_stop__missing,-0.18945566270945743
+careunit_tk_Neuro Surgical Intensive Care Unit (Neuro SICU),0.17856173391506197
+su_any_stay,0.17798250245430788
+dextrose_fluid_running_at_tk,0.16381139705308453
