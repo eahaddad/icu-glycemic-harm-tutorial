@@ -3,7 +3,8 @@ Column roles in hypo_tutorial.features (sql/02_features.sql).
 
 Three kinds of column leave the SQL, and the model may see only one of them:
 
-  LABELS       the four outcomes, computed from the 24 h AFTER the landmark
+  LABELS       the five outcomes, computed from the 24 h AFTER the landmark (y_lt54_excl_24h
+               is the sensitivity endpoint: < 54 after the CMS816 repeat-result exclusion)
   BOOKKEEPING  identifiers, times, the split, the era and the anchor offset, reporting-only columns and
                the drip-record flags. None of these describes the patient at t_k
                in a way a model should learn from: ids and times would memorise
@@ -20,9 +21,10 @@ The list is written out rather than derived so that a new column added to the
 SQL lands in the inputs only when someone decides it should.
 """
 
-LABELS = ["y_lt54_24h", "y_lt40_24h", "y_cms816_24h", "y_gt300_24h"]
+LABELS = ["y_lt54_24h", "y_lt54_excl_24h", "y_lt40_24h", "y_cms816_24h", "y_gt300_24h"]
 
-# the two outcomes the arms are trained on; the other two are reported descriptively
+# the two outcomes the arms are trained on; the other three are reported descriptively
+# (y_lt54_excl_24h is also the endpoint of one sensitivity analysis in the notebook)
 OUTCOMES = {"lt54": "y_lt54_24h", "gt300": "y_gt300_24h"}
 
 BOOKKEEPING = [

@@ -1,0 +1,10 @@
+tests/synthetic_mimic.duckdb
+tests/prefix_work/
+tests/predictions/
+tests/synthetic_parquet/
+__pycache__/
+*.pyc
+results/checks/
+results/extract/
+parquet/
+predictions/

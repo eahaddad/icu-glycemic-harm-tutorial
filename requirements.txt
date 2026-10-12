@@ -8,3 +8,6 @@ lightgbm==4.7.0               # stage 3: arm B
 shap==0.53.0                  # stage 3: TreeSHAP for arm B
 google-cloud-bigquery>=3.25   # pipeline/run_bigquery.py (preinstalled in Colab)
 db-dtypes>=1.2                # BigQuery results to pandas (preinstalled in Colab)
+# tests only (tests/make_synthetic.py, run_pipeline.py, prefix_invariance.py): the SQL files run on an invented database
+duckdb==1.5.6                 # the invented MIMIC-IV-shaped database the SQL runs on
+sqlglot==30.22.0              # transpiles the BigQuery files to DuckDB for the tests

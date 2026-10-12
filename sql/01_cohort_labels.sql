@@ -2,39 +2,57 @@
 --  01_cohort_labels.sql   (BigQuery Standard SQL, MIMIC-IV v3.1)
 --
 --  ICU glycemic-harm cohort: daily landmark rows for ICU stays, at risk when
---  insulin was given in the previous 24 h, labelled with the two CMS
---  hospital-harm glucose events in the next 24 h of ICU time:
---      y_lt54_24h   glucose < 54 mg/dL  (primary, the harm outcome)
---      y_gt300_24h  glucose > 300 mg/dL (second outcome, CMS871-style day)
---      y_lt40_24h, y_cms816_24h (secondary, reported with wide intervals)
+--  insulin was given in the previous 24 h, labelled with the glucose events
+--  of the next 24 h of ICU time:
+--      y_lt54_24h       any documented glucose < 54 mg/dL (primary, the harm outcome)
+--      y_gt300_24h      glucose > 300 mg/dL (second outcome, CMS871-style day)
+--      y_lt54_excl_24h  < 54 after the repeat-result exclusion below (sensitivity endpoint)
+--      y_lt40_24h       any documented < 40 (secondary)
+--      y_cms816_24h     the CMS816 event: < 40, not excluded by the repeat-result
+--                       rule, with a hypoglycemic agent in the 24 h before the result
 --
 --  Replace YOUR_PROJECT with your project id (dataset lives in US, same
 --  region as physionet-data). Requires 00b_extract.sql. Creates, in dataset
---  hypo_tutorial, one small table of parameters, one table of landmark rows
+--  hypo_tutorial, one small table of parameters, two tables of landmark rows
 --  and otherwise VIEWS:
 --
 --    params             the DECLARE values below, as one row, read by the views
 --
 --    stay_base          one row per eligible ICU stay (era, LOS >= 24 h, split:
 --                       train / test / test_shifted, from the two era DECLAREs)
---    emar_cohort        every eMAR row for cohort admissions, classified
+--    emar_cohort        every eMAR row for cohort admissions, classified, with
+--                       its entry time (storetime)
+--    emar_insulin_events
+--                       the eMAR's insulin infusion events (Started / Confirmed /
+--                       Stopped) with charttime and storetime
 --    emar_insulin_infusions
---                       insulin infusion intervals rebuilt from the eMAR's
---                       Started / Confirmed / Stopped events (second drip
---                       source; the first ICU run showed inputevents misses
---                       more than half of the 2020-2022 drips)
+--                       the infusion intervals those events describe once every
+--                       event is in (descriptive: table 15 and the CMS816 event);
+--                       the pipeline reads the per-landmark reconstruction below
 --    icu_insulin        every inputevents insulin row for cohort stays:
 --                       drips (rate segments) and boluses, Rewritten excluded,
---                       implausible rates and doses flagged
---    insulin_drips      the drip intervals of both sources, one view
+--                       implausible rates and doses flagged; storetime (entry)
+--                       and end_storetime (when a rate-change end was written)
+--    landmark_grid      TABLE: one row per (eligible stay, k) while the patient
+--                       is in the ICU and alive, with the per-landmark
+--                       flowsheet flag; the views below and cohort_landmarks read it
+--    emar_drips_at_landmark
+--                       the eMAR infusion state at each landmark, rebuilt from
+--                       the events charted AND entered before t_k
+--    drips_at_landmark  one row per (landmark, drip record visible at it), both
+--                       sources, with the availability rule applied (which
+--                       segments the landmark could see, whether their end was
+--                       known, the end it can use); 01 and 02 both read it
 --    sc_doses           subcutaneous / bolus doses from both sources, counted
 --                       once (eMAR first, inputevents when eMAR has nothing
---                       within SOURCE_MATCH_MINUTES)
+--                       within SOURCE_MATCH_MINUTES), with storetime
 --    icu_nutrition      enteral, parenteral, dextrose fluid and dextrose 50%
 --                       segments from inputevents
 --    icu_rrt            dialysis intervals: procedureevents intervals and
 --                       chartevents CRRT charting / hemodialysis output,
---                       merged per stay (00 sections O, O2, O3)
+--                       merged per stay (00 sections O, O2, O3); descriptive
+--    rrt_at_landmark    the same record rebuilt at each landmark from the
+--                       pieces entered before t_k (what 02 reads)
 --    icu_antibiotics    antibiotic segments from inputevents, with the first
 --                       start of each agent in the stay (00 section P)
 --    cultures           specimens collected, from hosp.microbiologyevents
@@ -42,15 +60,31 @@
 --    icu_octreotide     octreotide infusions and pushes from inputevents, by
 --                       label (00 section P2); eMAR octreotide is a drug_class
 --    glucose_events     the lab + ICU glucose stream, de-duplicated, with the
---                       repeat-test rule: a result below 54 followed within 5
---                       minutes by a result above 80 is flagged (cancelled_by_repeat),
---                       and repeat_storetime says when the contradicting result
---                       became visible (02 applies the flag to features only when
---                       that was before the landmark)
---    cohort_landmarks   one row per (stay_id, k): at-risk rows with labels
+--                       repeat-result rule: a result below 54 followed within 300
+--                       seconds by a result above 80 is flagged (cancelled_by_repeat;
+--                       the CMS816 exclusion, used by the CMS816 label and the
+--                       sensitivity endpoint only; the primary label and the
+--                       features use every documented result)
+--    cohort_landmarks   TABLE: one row per (stay_id, k): at-risk rows with labels
+--                       (02 joins it many times)
 --    (agent_patterns, written by 00b, supplies the hypoglycemic-agent regexes:
 --    the extract's universe and this file's classification share one definition)
---                       (the one materialized table: 02 joins it many times)
+--
+--  Availability (release .22). A record enters a landmark's eligibility or
+--  predictors only if the EHR held it at t_k: its storetime (MIMIC-IV's entry
+--  time) and its own clinical time both precede t_k. For a point record (a
+--  dose, a result, a charted value, an eMAR event) that is the both-times rule
+--  02 already applied to labs. For an interval record (an inputevents or
+--  procedureevents row) the row's start and rate are known from its storetime
+--  on (table 20: insulin segments are entered a median 1 minute after their
+--  start); its end is taken at its nominal time, except that a segment closed
+--  by a rate change ends only when the next segment was entered
+--  (end_storetime), because that is the one end whose entry time the data
+--  records. The eMAR infusion state is rebuilt at every landmark from the
+--  events entered before it, so a Stopped entered later cannot close an
+--  interval at an earlier landmark and a Stopped charted after the cap cannot
+--  reopen one. Labels are outcomes and use clinical times only. Tables 20 and
+--  21 measure the lags and what the rule changes at the landmarks.
 --
 --  Why views. The BigQuery sandbox (no billing account) grants a LIFETIME
 --  10 GiB of storage that is never refunded on deletion, and every CREATE OR
@@ -70,16 +104,17 @@
 --
 --  Design: landmark t_k = intime + 24*k h, k = 1..MAX_K, kept while the
 --  patient is in the ICU and alive. At risk when a subcutaneous or bolus
---  dose was given in [t_k - 24 h, t_k) or a drip interval overlaps it. The
---  drip record is flowsheet first: inputevents segments when the stay has
---  charted one by t_k, the eMAR infusion intervals only while it has not
---  (the flag is evaluated per landmark from segments started before t_k, so
---  a segment charted later in the stay cannot change an earlier row; the fourth
---  ICU run, table 7: where the flowsheet is complete, a row "running" on an
---  eMAR interval alone is checked 8 to 10 times in 24 h and has the event
---  rate of rows with no drip, an interval that outlived the drip; where the
---  flowsheet is absent, 2020-2022, the same rows are checked 13 times and
---  carry the drip rows' event rate).
+--  dose was given in [t_k - 24 h, t_k) or a drip record visible at t_k
+--  overlaps it. The drip record is flowsheet first: inputevents segments when
+--  the stay's flowsheet has shown one by t_k (a segment started AND entered
+--  before t_k), the eMAR infusion state only while it has not (the flag is
+--  evaluated per landmark, so a segment charted or entered later in the stay
+--  cannot change an earlier row; the fourth ICU run, table 7: where the
+--  flowsheet is complete, a row "running" on an eMAR interval alone is
+--  checked 8 to 10 times in 24 h and has the event rate of rows with no
+--  drip, an interval that outlived the drip; where the flowsheet is absent,
+--  2020-2022, the same rows are checked 13 times and carry the drip rows'
+--  event rate).
 --  Labels look at [t_k, window_end), window_end = the earlier of t_k + 24 h,
 --  ICU discharge and death: events after ICU discharge are not observed.
 --
@@ -258,7 +293,9 @@ e AS (
   -- rows collapsed: dose_given summed over the child rows, administration
   -- type and infusion rate from the parent row (00 C)
   SELECT
-    em.hadm_id, em.emar_id, em.charttime, em.medication, em.event_txt,
+    em.hadm_id, em.emar_id, em.charttime,
+    COALESCE(em.storetime, em.charttime) AS storetime,    -- entry time; a row without one is taken as entered when charted
+    em.medication, em.event_txt,
     em.dose_given AS dose_given_raw, em.dose_given_unit, em.administration_type, em.n_products,
     LOWER(em.medication) AS med,
     LOWER(COALESCE(em.event_txt, '')) AS evt,
@@ -270,7 +307,7 @@ e AS (
   CROSS JOIN `YOUR_PROJECT.hypo_tutorial.agent_patterns` AS ap
 )
 SELECT
-  e.hadm_id, e.emar_id, e.charttime, e.medication, e.event_txt,
+  e.hadm_id, e.emar_id, e.charttime, e.storetime, e.medication, e.event_txt,
   -- "Administered" in any form and "Partial Administered" count as a bolus
   -- given; anything containing "not" is out; NULL event text or the
   -- truncated " in Other Location" with a charted dose counts as given.
@@ -329,22 +366,32 @@ FROM e;
 --     Stopped when it ends (00 sections D, F). An interval opens at a start
 --     event, or at a Confirmed when no interval is open (the start was
 --     charted elsewhere or before the admission's rows), and closes at the
---     first Stopped after it, at the next start, or INFUSION_CAP_HOURS after
---     its last start or confirmation when nothing closes it. The first ICU
+--     earliest of the first Stopped after it, the next start, and
+--     INFUSION_CAP_HOURS after its last start or confirmation. The first ICU
 --     run made this view necessary: eMAR infusion starts sit on 20% of
 --     eligible stays in every era from 2017 on, while inputevents drip rows
 --     fell from 20% to 9% of stays in 2020-2022 (table 12), so a rule that
 --     read inputevents alone lost more than half of the test era's drips.
+--     Two views: emar_insulin_events holds the events with their entry time;
+--     emar_insulin_infusions applies the interval rules to EVERY event
+--     (the record as it stands at the end: table 15 describes it and the
+--     CMS816 label reads it). The landmark rows never read this view: what
+--     a landmark knew is rebuilt from the events entered before it in
+--     emar_drips_at_landmark (section 7), with the same rules.
 -- ---------------------------------------------------------------------
+CREATE OR REPLACE VIEW `YOUR_PROJECT.hypo_tutorial.emar_insulin_events` AS
+SELECT hadm_id, charttime, storetime,
+       CASE WHEN infusion_stop THEN 'stop' WHEN infusion_start THEN 'start' ELSE 'confirm' END AS kind,
+       CASE WHEN infusion_stop THEN 0    WHEN infusion_start THEN 1       ELSE 2 END           AS kind_order
+FROM `YOUR_PROJECT.hypo_tutorial.emar_cohort`
+WHERE drug_class = 'insulin'
+  AND NOT insulin_iv                                  -- the hyperkalemia / overdose push protocols are not drips
+  AND (infusion_start OR infusion_stop OR infusion_confirmed);
+
 CREATE OR REPLACE VIEW `YOUR_PROJECT.hypo_tutorial.emar_insulin_infusions` AS
 WITH ev AS (
-  SELECT hadm_id, charttime,
-         CASE WHEN infusion_stop THEN 'stop' WHEN infusion_start THEN 'start' ELSE 'confirm' END AS kind,
-         CASE WHEN infusion_stop THEN 0    WHEN infusion_start THEN 1       ELSE 2 END           AS kind_order
-  FROM `YOUR_PROJECT.hypo_tutorial.emar_cohort`
-  WHERE drug_class = 'insulin'
-    AND NOT insulin_iv                                  -- the hyperkalemia / overdose push protocols are not drips
-    AND (infusion_start OR infusion_stop OR infusion_confirmed)
+  SELECT hadm_id, charttime, kind, kind_order
+  FROM `YOUR_PROJECT.hypo_tutorial.emar_insulin_events`
 ),
 seq AS (
   SELECT *,
@@ -389,20 +436,28 @@ closed AS (
   FROM agg AS a
   WHERE a.start_time IS NOT NULL                       -- a session that is only a Stopped has no start evidence
 )
+-- the interval ends at the earliest of: the first Stopped, the next start, and the cap after the
+-- last start or confirmation. The cap binds even when a Stopped exists: a Stopped charted more than
+-- INFUSION_CAP_HOURS after the last evidence is a drip that ended earlier and whose end was charted
+-- late (table 15: inside intervals a Stopped closed, consecutive events are never more than 16 h
+-- apart in 99 of 100 cases), so it cannot stretch the interval across the silence
 SELECT
   hadm_id, session_id, start_time,
-  LEAST(COALESCE(stop_time, DATETIME_ADD(last_evidence, INTERVAL cap_hours HOUR)),
+  LEAST(COALESCE(stop_time, DATETIME '9999-12-31 00:00:00'),
+        DATETIME_ADD(last_evidence, INTERVAL cap_hours HOUR),
         COALESCE(next_start, DATETIME '9999-12-31 00:00:00'))                                AS end_time,
   CASE
-    WHEN next_start IS NOT NULL AND next_start <= COALESCE(stop_time, DATETIME_ADD(last_evidence, INTERVAL cap_hours HOUR)) THEN 'restarted'
-    WHEN stop_time IS NOT NULL THEN 'stopped'
+    WHEN next_start IS NOT NULL
+     AND next_start <= LEAST(COALESCE(stop_time, DATETIME '9999-12-31 00:00:00'), DATETIME_ADD(last_evidence, INTERVAL cap_hours HOUR)) THEN 'restarted'
+    WHEN stop_time IS NOT NULL AND stop_time <= DATETIME_ADD(last_evidence, INTERVAL cap_hours HOUR) THEN 'stopped'
     ELSE 'cap'
   END                                                                                       AS end_reason,
   n_starts > 0                                                                              AS has_start_event,
   n_confirmations,
   max_evidence_gap_hours
 FROM closed
-WHERE LEAST(COALESCE(stop_time, DATETIME_ADD(last_evidence, INTERVAL cap_hours HOUR)),
+WHERE LEAST(COALESCE(stop_time, DATETIME '9999-12-31 00:00:00'),
+            DATETIME_ADD(last_evidence, INTERVAL cap_hours HOUR),
             COALESCE(next_start, DATETIME '9999-12-31 00:00:00')) > start_time;
 
 
@@ -423,6 +478,14 @@ WHERE LEAST(COALESCE(stop_time, DATETIME_ADD(last_evidence, INTERVAL cap_hours H
 --        dropped.
 --    Implausible rates (above DRIP_RATE_MAX) and amounts are flagged and
 --    kept out of the exposure and the features, never silently used.
+--    Availability: storetime is the row's entry time (a row without one is
+--    taken as entered at its start); end_storetime is the entry time of the
+--    row's END where the data records one: a segment closed by a rate change
+--    (statusdescription ChangeDose/Rate) ends when the next segment of the
+--    same item starts, and that segment's storetime is when the change was
+--    written. A Stopped, Paused or FinishedRunning end has no entry time of
+--    its own in MIMIC-IV (the row's storetime sits at its start, table 20),
+--    so end_storetime is NULL and the end is taken at its nominal time.
 -- ---------------------------------------------------------------------
 CREATE OR REPLACE VIEW `YOUR_PROJECT.hypo_tutorial.icu_insulin` AS
 WITH items AS (
@@ -434,7 +497,8 @@ WITH items AS (
 raw AS (
   SELECT
     ie.hadm_id, ie.stay_id, ie.itemid, i.label,
-    ie.starttime, ie.endtime, ie.storetime,
+    ie.starttime, ie.endtime,
+    COALESCE(ie.storetime, ie.starttime) AS storetime,
     ie.amount, ie.amountuom, ie.rate, ie.rateuom,
     ie.ordercategorydescription, ie.statusdescription,
     DATETIME_DIFF(ie.endtime, ie.starttime, MINUTE) / 60.0                                AS hours,
@@ -447,10 +511,23 @@ raw AS (
   JOIN `YOUR_PROJECT.hypo_tutorial.stay_base`        AS b USING (stay_id)
   WHERE COALESCE(ie.statusdescription, '') != 'Rewritten'
 ),
+rate_changes AS (
+  -- the entry time of a rate-change end: the storetime of the segment that
+  -- starts where this one ends (the same stay and item; the earliest if several)
+  SELECT a.stay_id, a.itemid, a.starttime, a.endtime, MIN(b.storetime) AS end_storetime
+  FROM raw AS a
+  JOIN raw AS b
+    ON b.stay_id = a.stay_id AND b.itemid = a.itemid AND b.starttime = a.endtime
+   AND b.is_continuous AND NOT b.bolus_from_drip
+  WHERE a.statusdescription = 'ChangeDose/Rate' AND a.is_continuous AND NOT a.bolus_from_drip
+  GROUP BY a.stay_id, a.itemid, a.starttime, a.endtime
+),
 typed AS (
-  SELECT *,
+  SELECT r.*, rc.end_storetime,
     -- the rate used downstream: charted when present, else amount / hours for
-    -- the rate-less "Continuous IV" rows
+    -- the rate-less "Continuous IV" rows (a rate the record carries only once
+    -- the segment is complete: drips_at_landmark uses it for a running
+    -- segment only when that segment's end is known at the landmark)
     CASE
       WHEN bolus_from_drip                                  THEN NULL
       WHEN has_rate                                         THEN rate
@@ -463,11 +540,12 @@ typed AS (
       WHEN is_continuous   THEN 'derived from amount / hours'
       ELSE 'none'
     END AS rate_source
-  FROM raw
+  FROM raw AS r
+  LEFT JOIN rate_changes AS rc USING (stay_id, itemid, starttime, endtime)
 )
 SELECT
   hadm_id, stay_id, itemid, label,
-  starttime, endtime, storetime,
+  starttime, endtime, storetime, end_storetime,
   amount, amountuom, rate, rateuom,
   ordercategorydescription, statusdescription,
   hours, has_rate, is_continuous, bolus_from_drip, rate_source,
@@ -488,18 +566,160 @@ FROM typed;
 
 
 -- ---------------------------------------------------------------------
--- 3b. The drip intervals of both sources in one view. inputevents segments
---     carry the rate; eMAR intervals carry none. 02 takes hours from either
---     source (the larger of the two where both describe the same drip) and
---     rates from inputevents only.
+-- 3b. The landmark grid, and the drip record as each landmark could see it.
+--     landmark_grid: one row per (eligible stay, k) while the patient is in
+--     the ICU and alive, with window_end and the per-landmark flowsheet
+--     flag. A table (a few hundred thousand short rows) because the two
+--     views below, cohort_landmarks and 02 all read it.
+--     emar_drips_at_landmark: the eMAR infusion state at t_k, rebuilt from
+--     the events charted AND entered before t_k with the rules of view 2b
+--     (a start or a lone Confirmed opens; the first visible Stopped, the next
+--     visible start or the cap after the last visible evidence closes). A
+--     Stopped entered after t_k cannot close an interval at t_k; a Stopped
+--     charted after the cap expired cannot reopen one.
+--     drips_at_landmark: one row per (landmark, drip record visible at it),
+--     both sources. An inputevents segment is visible when its starttime and
+--     its storetime precede t_k; its end is known at t_k when it ended before
+--     t_k and, where the end has an entry time (end_storetime), that too
+--     precedes t_k; otherwise it is running at t_k. An eMAR session is running
+--     when its reconstructed end is at or after t_k. seg_end_at_tk is the end
+--     the landmark can use (the known end, else t_k); rate is the charted
+--     rate, or the amount-derived rate of a rate-less row only once that row
+--     is complete; counts_under_flowsheet_first applies the source rule of the
+--     header. 02 takes hours from either source (the larger of the two where
+--     both describe the same drip) and rates from inputevents only.
 -- ---------------------------------------------------------------------
-CREATE OR REPLACE VIEW `YOUR_PROJECT.hypo_tutorial.insulin_drips` AS
-SELECT hadm_id, stay_id, 'inputevents' AS source, starttime, endtime, drip_rate AS rate
-FROM `YOUR_PROJECT.hypo_tutorial.icu_insulin`
-WHERE is_drip
-UNION ALL
-SELECT hadm_id, CAST(NULL AS INT64), 'emar', start_time, end_time, CAST(NULL AS FLOAT64)
-FROM `YOUR_PROJECT.hypo_tutorial.emar_insulin_infusions`;
+CREATE OR REPLACE TABLE `YOUR_PROJECT.hypo_tutorial.landmark_grid` AS
+WITH first_flowsheet_drip AS (
+  -- the first moment the stay's flowsheet showed an insulin drip segment: the
+  -- segment had started AND had been entered (the later of the two times)
+  SELECT stay_id, MIN(GREATEST(starttime, storetime)) AS first_drip_known
+  FROM `YOUR_PROJECT.hypo_tutorial.icu_insulin` WHERE is_drip
+  GROUP BY stay_id
+),
+landmarks AS (
+  SELECT
+    b.subject_id, b.hadm_id, b.stay_id, b.split, b.anchor_year_group, b.years_after_anchor, k,
+    DATETIME_ADD(b.intime, INTERVAL k * 24 HOUR) AS t_k,
+    b.intime, b.outtime, b.deathtime,
+    COALESCE(f.first_drip_known < DATETIME_ADD(b.intime, INTERVAL k * 24 HOUR), FALSE) AS stay_has_inputevents_drip
+  FROM `YOUR_PROJECT.hypo_tutorial.stay_base` AS b
+  LEFT JOIN first_flowsheet_drip               AS f USING (stay_id)
+  CROSS JOIN UNNEST(GENERATE_ARRAY(1, MAX_K)) AS k
+)
+SELECT
+  subject_id, hadm_id, stay_id, split, anchor_year_group, years_after_anchor, k, t_k, stay_has_inputevents_drip,
+  -- window_end truncates the outcome window at ICU discharge or death
+  LEAST(DATETIME_ADD(t_k, INTERVAL 24 HOUR), outtime, COALESCE(deathtime, outtime)) AS window_end
+FROM landmarks
+WHERE t_k < outtime
+  AND (deathtime IS NULL OR t_k < deathtime);
+
+CREATE OR REPLACE VIEW `YOUR_PROJECT.hypo_tutorial.emar_drips_at_landmark` AS
+WITH ev AS (
+  -- the events a landmark could see: charted and entered before t_k
+  SELECT l.stay_id, l.k, l.t_k, e.charttime, e.kind, e.kind_order
+  FROM `YOUR_PROJECT.hypo_tutorial.landmark_grid`       AS l
+  JOIN `YOUR_PROJECT.hypo_tutorial.emar_insulin_events` AS e
+    ON e.hadm_id = l.hadm_id AND e.charttime < l.t_k AND e.storetime < l.t_k
+),
+seq AS (
+  SELECT *,
+         LAG(kind)      OVER w AS prev_kind,
+         LAG(charttime) OVER w AS prev_time
+  FROM ev
+  WINDOW w AS (PARTITION BY stay_id, k ORDER BY charttime, kind_order)
+),
+marks AS (
+  SELECT *,
+         CASE
+           WHEN kind = 'start' THEN 1
+           WHEN kind = 'confirm' AND (prev_kind IS NULL OR prev_kind = 'stop'
+                                      OR DATETIME_DIFF(charttime, prev_time, HOUR) >= (SELECT infusion_cap_hours FROM `YOUR_PROJECT.hypo_tutorial.params`)) THEN 1
+           ELSE 0
+         END AS opens
+  FROM seq
+),
+sessions AS (
+  SELECT *,
+         SUM(opens) OVER (PARTITION BY stay_id, k ORDER BY charttime, kind_order ROWS UNBOUNDED PRECEDING) AS session_id
+  FROM marks
+),
+agg AS (
+  SELECT
+    stay_id, k, t_k, session_id,
+    MIN(IF(kind != 'stop', charttime, NULL))                 AS start_time,
+    MIN(IF(kind = 'stop',  charttime, NULL))                 AS stop_time,
+    MAX(IF(kind != 'stop', charttime, NULL))                 AS last_evidence,
+    COUNTIF(kind = 'start')                                  AS n_starts,
+    COUNTIF(kind = 'confirm')                                AS n_confirmations
+  FROM sessions
+  GROUP BY stay_id, k, t_k, session_id
+),
+closed AS (
+  SELECT a.*,
+         LEAD(a.start_time) OVER (PARTITION BY a.stay_id, a.k ORDER BY a.start_time) AS next_start,
+         (SELECT infusion_cap_hours FROM `YOUR_PROJECT.hypo_tutorial.params`)        AS cap_hours
+  FROM agg AS a
+  WHERE a.start_time IS NOT NULL                       -- a session that is only a Stopped has no start evidence
+)
+SELECT
+  stay_id, k, t_k, session_id, start_time,
+  -- the same end rule as view 2b, over the visible events only: the earliest of the first visible
+  -- Stopped, the next visible start, and the cap after the last visible start or confirmation
+  LEAST(COALESCE(stop_time, DATETIME '9999-12-31 00:00:00'),
+        DATETIME_ADD(last_evidence, INTERVAL cap_hours HOUR),
+        COALESCE(next_start, DATETIME '9999-12-31 00:00:00'))                                AS end_time,
+  CASE
+    WHEN next_start IS NOT NULL
+     AND next_start <= LEAST(COALESCE(stop_time, DATETIME '9999-12-31 00:00:00'), DATETIME_ADD(last_evidence, INTERVAL cap_hours HOUR)) THEN 'restarted'
+    WHEN stop_time IS NOT NULL AND stop_time <= DATETIME_ADD(last_evidence, INTERVAL cap_hours HOUR) THEN 'stopped'
+    ELSE 'cap'
+  END                                                                                       AS end_reason,
+  n_starts > 0                                                                              AS has_start_event,
+  n_confirmations
+FROM closed
+WHERE LEAST(COALESCE(stop_time, DATETIME '9999-12-31 00:00:00'),
+            DATETIME_ADD(last_evidence, INTERVAL cap_hours HOUR),
+            COALESCE(next_start, DATETIME '9999-12-31 00:00:00')) > start_time;
+
+CREATE OR REPLACE VIEW `YOUR_PROJECT.hypo_tutorial.drips_at_landmark` AS
+WITH ie AS (
+  SELECT
+    l.stay_id, l.k, l.t_k, l.stay_has_inputevents_drip, 'inputevents' AS source,
+    d.starttime, d.endtime, d.storetime, d.end_storetime, d.rate_source,
+    d.endtime < l.t_k AND COALESCE(d.end_storetime < l.t_k, TRUE)                             AS end_known_at_tk,
+    -- a charted rate is known with the row; an amount-derived rate only once the row is complete
+    IF(d.rate_source = 'charted' OR (d.endtime < l.t_k AND COALESCE(d.end_storetime < l.t_k, TRUE)), d.drip_rate, NULL) AS rate
+  FROM `YOUR_PROJECT.hypo_tutorial.landmark_grid` AS l
+  JOIN `YOUR_PROJECT.hypo_tutorial.icu_insulin`   AS d
+    ON d.hadm_id = l.hadm_id
+   AND d.is_drip
+   AND d.starttime < l.t_k
+   AND d.storetime < l.t_k
+),
+em AS (
+  SELECT
+    l.stay_id, l.k, l.t_k, l.stay_has_inputevents_drip, 'emar' AS source,
+    e.start_time AS starttime, e.end_time AS endtime,
+    CAST(NULL AS DATETIME) AS storetime, CAST(NULL AS DATETIME) AS end_storetime, 'none' AS rate_source,
+    e.end_time < l.t_k                                                                        AS end_known_at_tk,
+    CAST(NULL AS FLOAT64)                                                                     AS rate
+  FROM `YOUR_PROJECT.hypo_tutorial.landmark_grid`           AS l
+  JOIN `YOUR_PROJECT.hypo_tutorial.emar_drips_at_landmark`  AS e USING (stay_id, k)
+),
+u AS (
+  SELECT * FROM ie
+  UNION ALL
+  SELECT * FROM em
+)
+SELECT
+  *,
+  NOT end_known_at_tk                                                                         AS running_at_tk,
+  IF(end_known_at_tk, endtime, t_k)                                                           AS seg_end_at_tk,
+  NOT end_known_at_tk OR endtime >= DATETIME_SUB(t_k, INTERVAL 24 HOUR)                       AS overlaps_lookback,
+  source = 'inputevents' OR NOT stay_has_inputevents_drip                                     AS counts_under_flowsheet_first
+FROM u;
 
 
 -- ---------------------------------------------------------------------
@@ -511,7 +731,7 @@ FROM `YOUR_PROJECT.hypo_tutorial.emar_insulin_infusions`;
 CREATE OR REPLACE VIEW `YOUR_PROJECT.hypo_tutorial.sc_doses` AS
 WITH emar_doses AS (
   SELECT
-    hadm_id, charttime, drug_class, insulin_kind,
+    hadm_id, charttime, storetime, drug_class, insulin_kind,
     IF(drug_class = 'insulin' AND REGEXP_CONTAINS(LOWER(COALESCE(dose_given_unit, '')), r'unit'), dose_given, NULL) AS dose_units,
     insulin_iv,
     'emar' AS source
@@ -521,7 +741,7 @@ WITH emar_doses AS (
 ),
 ie_boluses AS (
   SELECT
-    i.hadm_id, i.starttime AS charttime, 'insulin' AS drug_class, i.insulin_kind,
+    i.hadm_id, i.starttime AS charttime, i.storetime, 'insulin' AS drug_class, i.insulin_kind,
     i.bolus_units AS dose_units,
     FALSE AS insulin_iv,
     'inputevents' AS source
@@ -556,7 +776,9 @@ SELECT * FROM ie_unmatched;
 -- dextrose fluid); the dextrose-containing fluids are what is left (Dextrose
 -- 5% is 1.2 M rows, most of them two-hour carrier bags for other drugs, so
 -- the feature is a rate, not a flag). Running-at-landmark features use rate
--- rows only (has_rate); amount rows are boluses and flushes.
+-- rows only (has_rate); amount rows are boluses and flushes. storetime and
+-- end_storetime as in icu_insulin: the row's entry time, and the entry time
+-- of a rate-change end (the next segment's storetime).
 CREATE OR REPLACE VIEW `YOUR_PROJECT.hypo_tutorial.icu_nutrition` AS
 WITH items AS (
   SELECT itemid, label,
@@ -570,21 +792,34 @@ WITH items AS (
   FROM `physionet-data.mimiciv_3_1_icu.d_items`
   WHERE linksto = 'inputevents'
     AND NOT REGEXP_CONTAINS(LOWER(label), r'insulin|ranitidine')
+),
+raw AS (
+  SELECT
+    ie.stay_id, ie.hadm_id, ie.itemid, i.label, i.kind,
+    ie.starttime, ie.endtime,
+    COALESCE(ie.storetime, ie.starttime) AS storetime,
+    ie.rate, ie.rateuom, ie.amount, ie.amountuom, ie.statusdescription,
+    DATETIME_DIFF(ie.endtime, ie.starttime, MINUTE) / 60.0                                AS hours,
+    ie.rate IS NOT NULL AND REGEXP_CONTAINS(LOWER(COALESCE(ie.rateuom, '')), r'hour')
+      AND ie.rate > 0 AND ie.rate <= (SELECT feed_rate_max FROM `YOUR_PROJECT.hypo_tutorial.params`) AND ie.endtime > ie.starttime           AS has_rate,
+    ie.rate IS NOT NULL AND (ie.rate <= 0 OR ie.rate > (SELECT feed_rate_max FROM `YOUR_PROJECT.hypo_tutorial.params`))                     AS rate_implausible
+  FROM `YOUR_PROJECT.hypo_tutorial.src_inputevents` AS ie
+  JOIN items                                         AS i USING (itemid)
+  JOIN `YOUR_PROJECT.hypo_tutorial.stay_base`        AS b USING (stay_id)
+  WHERE i.kind IS NOT NULL
+    AND COALESCE(ie.statusdescription, '') != 'Rewritten'
+    AND ie.endtime >= ie.starttime
+),
+rate_changes AS (
+  SELECT a.stay_id, a.itemid, a.starttime, a.endtime, MIN(b.storetime) AS end_storetime
+  FROM raw AS a
+  JOIN raw AS b ON b.stay_id = a.stay_id AND b.itemid = a.itemid AND b.starttime = a.endtime AND b.rate IS NOT NULL
+  WHERE a.statusdescription = 'ChangeDose/Rate' AND a.rate IS NOT NULL
+  GROUP BY a.stay_id, a.itemid, a.starttime, a.endtime
 )
-SELECT
-  ie.stay_id, ie.hadm_id, ie.itemid, i.label, i.kind,
-  ie.starttime, ie.endtime,
-  ie.rate, ie.rateuom, ie.amount, ie.amountuom,
-  DATETIME_DIFF(ie.endtime, ie.starttime, MINUTE) / 60.0                                AS hours,
-  ie.rate IS NOT NULL AND REGEXP_CONTAINS(LOWER(COALESCE(ie.rateuom, '')), r'hour')
-    AND ie.rate > 0 AND ie.rate <= (SELECT feed_rate_max FROM `YOUR_PROJECT.hypo_tutorial.params`) AND ie.endtime > ie.starttime           AS has_rate,
-  ie.rate IS NOT NULL AND (ie.rate <= 0 OR ie.rate > (SELECT feed_rate_max FROM `YOUR_PROJECT.hypo_tutorial.params`))                     AS rate_implausible
-FROM `YOUR_PROJECT.hypo_tutorial.src_inputevents` AS ie
-JOIN items                                         AS i USING (itemid)
-JOIN `YOUR_PROJECT.hypo_tutorial.stay_base`        AS b USING (stay_id)
-WHERE i.kind IS NOT NULL
-  AND COALESCE(ie.statusdescription, '') != 'Rewritten'
-  AND ie.endtime >= ie.starttime;
+SELECT r.* EXCEPT (statusdescription), rc.end_storetime
+FROM raw AS r
+LEFT JOIN rate_changes AS rc USING (stay_id, itemid, starttime, endtime);
 
 
 -- ---------------------------------------------------------------------
@@ -629,7 +864,8 @@ WITH pe_items AS (
     AND NOT REGEXP_CONTAINS(LOWER(label), r'catheter|filter change')
 ),
 pieces_pe AS (
-  SELECT pe.stay_id, pe.hadm_id, i.rrt_kind, 'procedureevents' AS source, pe.starttime, pe.endtime
+  SELECT pe.stay_id, pe.hadm_id, i.rrt_kind, 'procedureevents' AS source, pe.starttime, pe.endtime,
+         COALESCE(pe.storetime, pe.starttime) AS storetime
   FROM `YOUR_PROJECT.hypo_tutorial.src_procedureevents` AS pe
   JOIN pe_items                                          AS i USING (itemid)
   JOIN `YOUR_PROJECT.hypo_tutorial.stay_base`            AS b USING (stay_id)
@@ -637,18 +873,19 @@ pieces_pe AS (
     AND pe.endtime > pe.starttime
 ),
 crrt_chart AS (
-  SELECT DISTINCT ce.stay_id, b.hadm_id, ce.charttime
+  SELECT ce.stay_id, b.hadm_id, ce.charttime, MIN(COALESCE(ce.storetime, ce.charttime)) AS storetime
   FROM `YOUR_PROJECT.hypo_tutorial.src_chartevents` AS ce
   JOIN `YOUR_PROJECT.hypo_tutorial.stay_base`       AS b USING (stay_id)
   WHERE ce.itemid IN (227290, 224154, 224153, 228005, 228006, 224151, 225977, 230085)
+  GROUP BY ce.stay_id, b.hadm_id, ce.charttime
 ),
 crrt_islands AS (
-  SELECT stay_id, hadm_id, charttime,
+  SELECT stay_id, hadm_id, charttime, storetime,
          -- a new interval starts when the previous charting is more than RRT_GAP_HOURS back
          SUM(IF(prev_time IS NULL OR DATETIME_DIFF(charttime, prev_time, MINUTE) > (SELECT rrt_gap_hours FROM `YOUR_PROJECT.hypo_tutorial.params`) * 60, 1, 0))
            OVER (PARTITION BY stay_id ORDER BY charttime ROWS UNBOUNDED PRECEDING) AS island
   FROM (
-    SELECT stay_id, hadm_id, charttime,
+    SELECT stay_id, hadm_id, charttime, storetime,
            LAG(charttime) OVER (PARTITION BY stay_id ORDER BY charttime) AS prev_time
     FROM crrt_chart
   )
@@ -656,14 +893,16 @@ crrt_islands AS (
 pieces_crrt AS (
   SELECT stay_id, hadm_id, 'crrt' AS rrt_kind, 'chartevents' AS source,
          MIN(charttime) AS starttime,
-         DATETIME_ADD(MAX(charttime), INTERVAL 1 HOUR) AS endtime
+         DATETIME_ADD(MAX(charttime), INTERVAL 1 HOUR) AS endtime,
+         MIN(storetime) AS storetime                    -- the interval is visible from its first charting's entry
   FROM crrt_islands
   GROUP BY stay_id, hadm_id, island
 ),
 pieces_hd_output AS (
   SELECT DISTINCT ce.stay_id, b.hadm_id, 'ihd' AS rrt_kind, 'chartevents' AS source,
          DATETIME_SUB(ce.charttime, INTERVAL 1 MINUTE) AS starttime,
-         ce.charttime                                   AS endtime
+         ce.charttime                                   AS endtime,
+         COALESCE(ce.storetime, ce.charttime)           AS storetime
   FROM `YOUR_PROJECT.hypo_tutorial.src_chartevents` AS ce
   JOIN `YOUR_PROJECT.hypo_tutorial.stay_base`       AS b USING (stay_id)
   WHERE ce.itemid = 226499
@@ -689,6 +928,7 @@ SELECT
   stay_id, hadm_id, island AS rrt_interval_seq,
   MIN(starttime) AS starttime,
   MAX(endtime)   AS endtime,
+  MIN(storetime) AS storetime,                                -- visible from the entry of its earliest piece
   DATETIME_DIFF(MAX(endtime), MIN(starttime), MINUTE) / 60.0 AS hours,
   CASE WHEN COUNTIF(rrt_kind = 'crrt') > 0 THEN 'crrt'
        WHEN COUNTIF(rrt_kind = 'pd')   > 0 THEN 'pd'
@@ -698,6 +938,109 @@ SELECT
        ELSE 'chartevents' END AS source
 FROM merged
 GROUP BY stay_id, hadm_id, island;
+
+CREATE OR REPLACE VIEW `YOUR_PROJECT.hypo_tutorial.rrt_at_landmark` AS
+-- The dialysis record as each landmark could see it (the availability rule
+-- of the header applied to a record that is rebuilt from pieces): the
+-- procedureevents intervals entered before t_k, the CRRT chartings and
+-- hemodialysis outputs charted AND entered before t_k, collapsed into
+-- intervals and merged per landmark with the rules of icu_rrt. A charting
+-- entered after t_k therefore cannot extend an interval's end at t_k (the
+-- end of a charting interval is its last VISIBLE charting plus one hour),
+-- and 02 reads this view, not icu_rrt, for the landmark features; icu_rrt
+-- stays the descriptive record (tables 11 and 21 compare the two).
+WITH lm AS (
+  SELECT stay_id, k, t_k FROM `YOUR_PROJECT.hypo_tutorial.landmark_grid`
+),
+pe_items AS (
+  SELECT itemid,
+         CASE WHEN REGEXP_CONTAINS(LOWER(label), r'crrt|cvvh|scuf') THEN 'crrt'
+              WHEN REGEXP_CONTAINS(LOWER(label), r'peritoneal')     THEN 'pd'
+              ELSE 'ihd' END AS rrt_kind
+  FROM `physionet-data.mimiciv_3_1_icu.d_items`
+  WHERE linksto = 'procedureevents'
+    AND REGEXP_CONTAINS(LOWER(label), r'dialysis|crrt|cvvh|scuf')
+    AND NOT REGEXP_CONTAINS(LOWER(label), r'catheter|filter change')
+),
+pieces_pe AS (
+  SELECT l.stay_id, l.k, l.t_k, i.rrt_kind, 'procedureevents' AS source, pe.starttime, pe.endtime
+  FROM lm AS l
+  JOIN `YOUR_PROJECT.hypo_tutorial.src_procedureevents` AS pe
+    ON pe.stay_id = l.stay_id AND pe.starttime < l.t_k AND COALESCE(pe.storetime, pe.starttime) < l.t_k
+  JOIN pe_items AS i USING (itemid)
+  WHERE COALESCE(pe.statusdescription, '') != 'Rewritten'
+    AND pe.endtime > pe.starttime
+),
+crrt_chart AS (
+  -- chartings of the 28 h before t_k: the look-back plus the island gap. An island whose last charting is
+  -- older than that ended before the look-back, and one that began earlier keeps its hours in the look-back
+  -- (02 clips every interval at t_k - 24 h), so the bound changes no feature and keeps the join small
+  SELECT DISTINCT l.stay_id, l.k, l.t_k, ce.charttime
+  FROM lm AS l
+  JOIN `YOUR_PROJECT.hypo_tutorial.src_chartevents` AS ce
+    ON ce.stay_id = l.stay_id
+   AND ce.charttime < l.t_k AND ce.charttime >= DATETIME_SUB(l.t_k, INTERVAL 28 HOUR)
+   AND COALESCE(ce.storetime, ce.charttime) < l.t_k
+  WHERE ce.itemid IN (227290, 224154, 224153, 228005, 228006, 224151, 225977, 230085)
+),
+crrt_islands AS (
+  SELECT stay_id, k, t_k, charttime,
+         SUM(IF(prev_time IS NULL OR DATETIME_DIFF(charttime, prev_time, MINUTE) > (SELECT rrt_gap_hours FROM `YOUR_PROJECT.hypo_tutorial.params`) * 60, 1, 0))
+           OVER (PARTITION BY stay_id, k ORDER BY charttime ROWS UNBOUNDED PRECEDING) AS island
+  FROM (
+    SELECT stay_id, k, t_k, charttime,
+           LAG(charttime) OVER (PARTITION BY stay_id, k ORDER BY charttime) AS prev_time
+    FROM crrt_chart
+  )
+),
+pieces_crrt AS (
+  SELECT stay_id, k, t_k, 'crrt' AS rrt_kind, 'chartevents' AS source,
+         MIN(charttime) AS starttime,
+         DATETIME_ADD(MAX(charttime), INTERVAL 1 HOUR) AS endtime
+  FROM crrt_islands
+  GROUP BY stay_id, k, t_k, island
+),
+pieces_hd_output AS (
+  SELECT DISTINCT l.stay_id, l.k, l.t_k, 'ihd' AS rrt_kind, 'chartevents' AS source,
+         DATETIME_SUB(ce.charttime, INTERVAL 1 MINUTE) AS starttime,
+         ce.charttime                                   AS endtime
+  FROM lm AS l
+  JOIN `YOUR_PROJECT.hypo_tutorial.src_chartevents` AS ce
+    ON ce.stay_id = l.stay_id
+   AND ce.charttime < l.t_k AND ce.charttime >= DATETIME_SUB(l.t_k, INTERVAL 28 HOUR)
+   AND COALESCE(ce.storetime, ce.charttime) < l.t_k
+  WHERE ce.itemid = 226499
+),
+pieces AS (
+  SELECT * FROM pieces_pe
+  UNION ALL SELECT * FROM pieces_crrt
+  UNION ALL SELECT * FROM pieces_hd_output
+),
+ordered AS (
+  SELECT *,
+         MAX(endtime) OVER (PARTITION BY stay_id, k ORDER BY starttime, endtime
+                            ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING) AS prev_max_end
+  FROM pieces
+),
+merged AS (
+  SELECT *,
+         SUM(IF(prev_max_end IS NULL OR starttime > prev_max_end, 1, 0))
+           OVER (PARTITION BY stay_id, k ORDER BY starttime, endtime ROWS UNBOUNDED PRECEDING) AS island
+  FROM ordered
+)
+SELECT
+  stay_id, k, t_k, island AS rrt_interval_seq,
+  MIN(starttime) AS starttime,
+  MAX(endtime)   AS endtime,
+  DATETIME_DIFF(MAX(endtime), MIN(starttime), MINUTE) / 60.0 AS hours,
+  CASE WHEN COUNTIF(rrt_kind = 'crrt') > 0 THEN 'crrt'
+       WHEN COUNTIF(rrt_kind = 'pd')   > 0 THEN 'pd'
+       ELSE 'ihd' END AS rrt_kind,
+  CASE WHEN COUNTIF(source = 'procedureevents') > 0 AND COUNTIF(source = 'chartevents') > 0 THEN 'both'
+       WHEN COUNTIF(source = 'procedureevents') > 0 THEN 'procedureevents'
+       ELSE 'chartevents' END AS source
+FROM merged
+GROUP BY stay_id, k, t_k, island;
 
 CREATE OR REPLACE VIEW `YOUR_PROJECT.hypo_tutorial.icu_antibiotics` AS
 WITH items AS (
@@ -709,16 +1052,16 @@ WITH items AS (
 seg AS (
   SELECT
     ie.stay_id, ie.hadm_id, ie.itemid, i.label, ie.starttime, ie.endtime,
-    MIN(ie.starttime) OVER (PARTITION BY ie.stay_id, ie.itemid) AS first_start_in_stay
+    COALESCE(ie.storetime, ie.starttime) AS storetime
   FROM `YOUR_PROJECT.hypo_tutorial.src_inputevents` AS ie
   JOIN items                                         AS i USING (itemid)
   JOIN `YOUR_PROJECT.hypo_tutorial.stay_base`        AS b USING (stay_id)
   WHERE COALESCE(ie.statusdescription, '') != 'Rewritten'
     AND ie.endtime >= ie.starttime
 )
-SELECT
-  stay_id, hadm_id, itemid, label, starttime, endtime,
-  starttime = first_start_in_stay AS is_first_start_in_stay
+-- an agent's first start in the stay is decided per landmark in 02 and table 11, over the
+-- segments entered by then (a segment entered later cannot move an earlier row's first start)
+SELECT stay_id, hadm_id, itemid, label, starttime, endtime, storetime
 FROM seg;
 
 CREATE OR REPLACE VIEW `YOUR_PROJECT.hypo_tutorial.cultures` AS
@@ -732,6 +1075,11 @@ CREATE OR REPLACE VIEW `YOUR_PROJECT.hypo_tutorial.cultures` AS
 -- first landmark), serology and immunology panels. 00 P also showed that
 -- every common specimen type carries a charttime (0.0% date-only), so the
 -- date rule below is a guard that costs nothing in v3.1.
+-- No storetime here, on purpose: a microbiologyevents row is stored when a
+-- RESULT is entered (organisms and susceptibilities arrive days after the
+-- draw; table 20 measures the lag), while the feature reads only the fact
+-- that a specimen was collected, which the order system holds from the
+-- collection on. The collection time is therefore the record's own time.
 SELECT DISTINCT
   m.hadm_id,
   m.micro_specimen_id,
@@ -749,6 +1097,7 @@ CREATE OR REPLACE VIEW `YOUR_PROJECT.hypo_tutorial.icu_octreotide` AS
 -- (drug_class = 'octreotide'), and 02 takes the union of the two sources
 SELECT
   ie.stay_id, ie.hadm_id, ie.itemid, i.label, ie.starttime, ie.endtime,
+  COALESCE(ie.storetime, ie.starttime) AS storetime,
   ie.rate IS NOT NULL AND ie.rate > 0 AS has_rate
 FROM `YOUR_PROJECT.hypo_tutorial.src_inputevents` AS ie
 JOIN (SELECT itemid, label FROM `physionet-data.mimiciv_3_1_icu.d_items`
@@ -763,17 +1112,22 @@ WHERE COALESCE(ie.statusdescription, '') != 'Rewritten'
 --    (hadm_id, charttime, value). 220621 is usually the ICU's copy of the
 --    lab result, so the de-duplication matters for counts.
 --    storetime = when the result became visible; features use it (02),
---    labels use charttime. Repeat-test rule, after CMS816's exclusion for
---    its < 40 measure ("a subsequent glucose > 80 mg/dL within 5 minutes"),
---    extended here to every result below 54: a LOW result contradicted by
---    any result above 80 charted within 300 seconds is a false positive
---    (a contaminated draw or a meter error) and is excluded from the labels.
---    Until release .20 the flag had no "low" condition and looked only at the
---    next result, so a 110 followed by a 120, or a 350 by a 320, was dropped
---    too (the review of 12 October 2026 found it). repeat_storetime is when
---    the contradicting result became visible: 02 may exclude a cancelled low
---    from the features only when that time precedes the landmark, otherwise
---    the exclusion would use a result the clinician had not yet seen.
+--    labels use charttime. Repeat-result rule: CMS816 excludes from its
+--    < 40 measure a result followed by "a subsequent glucose > 80 mg/dL
+--    within 5 minutes". The flag cancelled_by_repeat marks every result
+--    below 54 contradicted by any result above 80 charted within 300
+--    seconds (any later result in that span, not only the next; results at
+--    or above 54 are never flagged; until release .20 the flag had no "low"
+--    condition and looked only at the next result, so a 110 followed by a
+--    120 was dropped too, which the review of 12 October 2026 found). What
+--    the flag establishes is that the low was contradicted, not why
+--    (treatment between two draws, two sampling methods and meter error
+--    all produce the pattern), so since release .22 it is used only where
+--    CMS defines it, the CMS816 label, and in the sensitivity endpoint
+--    y_lt54_excl_24h; the primary label counts every documented low and
+--    the features use every documented result known at the landmark.
+--    repeat_storetime, the entry time of the earliest contradicting result,
+--    is kept for table 18.
 -- ---------------------------------------------------------------------
 CREATE OR REPLACE VIEW `YOUR_PROJECT.hypo_tutorial.glucose_events` AS
 WITH cohort_adm AS (
@@ -832,111 +1186,101 @@ LEFT JOIN repeats AS rp
 
 
 -- ---------------------------------------------------------------------
--- 7. Landmark rows, the at-risk rule and the labels.
+-- 7. Landmark rows, the at-risk rule and the labels. The rows come from
+--    landmark_grid (3b); the exposure reads sc_doses under the both-times
+--    rule and drips_at_landmark, so eligibility uses exactly the records
+--    the landmark could see, and 02 reads the same two views for the
+--    predictors. Labels are outcomes: they use the clinical times of every
+--    documented result in [t_k, window_end), never an entry time.
 -- ---------------------------------------------------------------------
 CREATE OR REPLACE TABLE `YOUR_PROJECT.hypo_tutorial.cohort_landmarks` AS
-WITH first_flowsheet_drip AS (
-  -- when the flowsheet first charted an insulin drip segment in the stay: from
-  -- that time on the drip record is inputevents alone (see the header). The
-  -- flag below is evaluated against t_k, so it is knowable at the landmark; a
-  -- segment charted later in the stay does not change an earlier row.
-  SELECT stay_id, MIN(starttime) AS first_drip_start
-  FROM `YOUR_PROJECT.hypo_tutorial.icu_insulin` WHERE is_drip
-  GROUP BY stay_id
-),
-landmarks AS (
-  SELECT
-    b.subject_id, b.hadm_id, b.stay_id, b.split, b.anchor_year_group, b.years_after_anchor, k,
-    DATETIME_ADD(b.intime, INTERVAL k * 24 HOUR) AS t_k,
-    b.intime, b.outtime, b.deathtime,
-    COALESCE(f.first_drip_start < DATETIME_ADD(b.intime, INTERVAL k * 24 HOUR), FALSE) AS stay_has_inputevents_drip
-  FROM `YOUR_PROJECT.hypo_tutorial.stay_base` AS b
-  LEFT JOIN first_flowsheet_drip               AS f USING (stay_id)
-  CROSS JOIN UNNEST(GENERATE_ARRAY(1, MAX_K)) AS k
-),
-landmarks_alive AS (
-  -- keep t_k only while the patient is still in the ICU and alive;
-  -- window_end truncates the outcome window at ICU discharge or death
-  SELECT
-    subject_id, hadm_id, stay_id, split, anchor_year_group, years_after_anchor, k, t_k, stay_has_inputevents_drip,
-    LEAST(DATETIME_ADD(t_k, INTERVAL 24 HOUR), outtime, COALESCE(deathtime, outtime)) AS window_end
-  FROM landmarks
-  WHERE t_k < outtime
-    AND (deathtime IS NULL OR t_k < deathtime)
+WITH landmarks_alive AS (
+  SELECT * FROM `YOUR_PROJECT.hypo_tutorial.landmark_grid`
 ),
 exposure AS (
-  -- a dose is a point in time, a drip interval (either source, 3b) is an interval
-  SELECT hadm_id, drug_class, source, charttime AS expo_start, charttime AS expo_end, FALSE AS is_drip
-  FROM `YOUR_PROJECT.hypo_tutorial.sc_doses`
+  -- a dose is a point in time, entered and given before t_k and inside the look-back; a drip is a record
+  -- visible at t_k (3b) that overlaps the look-back, under the flowsheet-first rule for the eMAR intervals
+  -- (an eMAR DOSE counts in every stay: the fifth ICU run dropped 10,034 rows when the rule touched doses)
+  SELECT l.stay_id, l.k, l.t_k, d.drug_class, d.source, FALSE AS is_drip, FALSE AS running, d.charttime AS expo_end
+  FROM landmarks_alive AS l
+  JOIN `YOUR_PROJECT.hypo_tutorial.sc_doses` AS d
+    ON d.hadm_id = l.hadm_id
+   AND d.charttime >= DATETIME_SUB(l.t_k, INTERVAL 24 HOUR)
+   AND d.charttime <  l.t_k
+   AND d.storetime <  l.t_k
   UNION ALL
-  SELECT hadm_id, 'insulin', source, starttime, endtime, TRUE
-  FROM `YOUR_PROJECT.hypo_tutorial.insulin_drips`
+  SELECT x.stay_id, x.k, x.t_k, 'insulin', x.source, TRUE, x.running_at_tk, x.seg_end_at_tk
+  FROM `YOUR_PROJECT.hypo_tutorial.drips_at_landmark` AS x
+  WHERE x.overlaps_lookback
+    AND x.counts_under_flowsheet_first
 ),
 at_risk AS (
   -- the CMS816 denominator idea, applied daily: a hypoglycemic agent was
   -- given in the 24 h before the landmark (dose in the window, or a drip
-  -- interval overlapping it). Flowsheet first: an eMAR interval counts only
-  -- while the stay's flowsheet has charted no inputevents drip segment (by t_k).
+  -- record overlapping it)
   SELECT
-    l.stay_id, l.k,
+    stay_id, k,
     COUNT(*)                                            AS n_hypo_admin_24h,
-    COUNTIF(NOT x.is_drip)                              AS n_doses_24h,
-    COUNTIF(x.drug_class = 'insulin' AND NOT x.is_drip) AS n_insulin_sc_24h,
-    COUNTIF(x.drug_class = 'sulfonylurea')              AS n_su_admin_24h,
-    COUNTIF(x.drug_class = 'meglitinide')               AS n_megl_admin_24h,
-    COUNTIF(x.source = 'inputevents' AND NOT x.is_drip) AS n_sc_from_inputevents_24h,
-    MAX(IF(x.is_drip, 1, 0))                            AS insulin_drip_24h,
-    MAX(IF(x.is_drip AND x.expo_end >= l.t_k, 1, 0))    AS drip_running_at_tk,
-    MAX(IF(x.is_drip AND x.source = 'inputevents', 1, 0)) AS drip_inputevents_24h,   -- bookkeeping: which source saw the drip
-    MAX(IF(x.is_drip AND x.source = 'emar', 1, 0))        AS drip_emar_24h,
-    MAX(IF(x.is_drip AND x.source = 'inputevents' AND x.expo_end >= l.t_k, 1, 0)) AS drip_running_inputevents_at_tk,
-    MAX(IF(x.is_drip AND x.source = 'emar'        AND x.expo_end >= l.t_k, 1, 0)) AS drip_running_emar_at_tk,
-    MAX(LEAST(x.expo_end, l.t_k))                       AS last_hypo_admin_time
-  FROM landmarks_alive AS l
-  JOIN exposure AS x
-    ON x.hadm_id = l.hadm_id
-   AND x.expo_start <  l.t_k
-   AND x.expo_end   >= DATETIME_SUB(l.t_k, INTERVAL 24 HOUR)
-   -- flowsheet first applies to the drip intervals only: an eMAR DOSE counts in every stay
-   -- (the fifth ICU run dropped 10,034 rows when this test lacked NOT x.is_drip)
-   AND (NOT x.is_drip OR x.source != 'emar' OR NOT l.stay_has_inputevents_drip)
-  GROUP BY l.stay_id, l.k
+    COUNTIF(NOT is_drip)                                AS n_doses_24h,
+    COUNTIF(drug_class = 'insulin' AND NOT is_drip)     AS n_insulin_sc_24h,
+    COUNTIF(drug_class = 'sulfonylurea')                AS n_su_admin_24h,
+    COUNTIF(drug_class = 'meglitinide')                 AS n_megl_admin_24h,
+    COUNTIF(source = 'inputevents' AND NOT is_drip)     AS n_sc_from_inputevents_24h,
+    MAX(IF(is_drip, 1, 0))                              AS insulin_drip_24h,
+    MAX(IF(is_drip AND running, 1, 0))                  AS drip_running_at_tk,
+    MAX(IF(is_drip AND source = 'inputevents', 1, 0))   AS drip_inputevents_24h,   -- bookkeeping: which source saw the drip
+    MAX(IF(is_drip AND source = 'emar', 1, 0))          AS drip_emar_24h,
+    MAX(IF(is_drip AND source = 'inputevents' AND running, 1, 0)) AS drip_running_inputevents_at_tk,
+    MAX(IF(is_drip AND source = 'emar'        AND running, 1, 0)) AS drip_running_emar_at_tk,
+    MAX(LEAST(expo_end, t_k))                           AS last_hypo_admin_time
+  FROM exposure
+  GROUP BY stay_id, k
 ),
 emar_open AS (
-  -- diagnostic (table 7): landmarks with an eMAR interval open at t_k,
-  -- whether the rule used it or not
-  SELECT DISTINCT l.stay_id, l.k
-  FROM landmarks_alive AS l
-  JOIN `YOUR_PROJECT.hypo_tutorial.emar_insulin_infusions` AS i
-    ON i.hadm_id = l.hadm_id AND i.start_time < l.t_k AND i.end_time >= l.t_k
+  -- diagnostic (table 7): landmarks with an eMAR interval running at t_k,
+  -- whether the flowsheet-first rule used it or not
+  SELECT DISTINCT stay_id, k
+  FROM `YOUR_PROJECT.hypo_tutorial.drips_at_landmark`
+  WHERE source = 'emar' AND running_at_tk
 ),
 events_in_window AS (
-  -- any confirmed result below / above threshold in [t_k, window_end)
+  -- every documented result in [t_k, window_end); the repeat-result flag
+  -- enters only the sensitivity endpoint
   SELECT
     l.stay_id, l.k,
-    MAX(IF(g.lt54, 1, 0))                AS y_lt54_24h,
-    MAX(IF(g.lt40, 1, 0))                AS y_lt40_24h,
-    MAX(IF(g.gt300, 1, 0))               AS y_gt300_24h,
-    MIN(IF(g.lt54, g.charttime, NULL))   AS first_lt54_time,
-    MIN(IF(g.lt40, g.charttime, NULL))   AS first_lt40_time,
-    MIN(IF(g.gt300, g.charttime, NULL))  AS first_gt300_time,
-    COUNTIF(g.lt70)                      AS n_lt70_in_window,
-    COUNTIF(g.gt300)                     AS n_gt300_in_window,
-    COUNTIF(g.glucose IS NOT NULL)       AS n_glucose_in_window
+    MAX(IF(g.lt54, 1, 0))                                   AS y_lt54_24h,
+    MAX(IF(g.lt54 AND NOT g.cancelled_by_repeat, 1, 0))     AS y_lt54_excl_24h,
+    MAX(IF(g.lt40, 1, 0))                                   AS y_lt40_24h,
+    MAX(IF(g.gt300, 1, 0))                                  AS y_gt300_24h,
+    MIN(IF(g.lt54, g.charttime, NULL))                      AS first_lt54_time,
+    MIN(IF(g.lt40, g.charttime, NULL))                      AS first_lt40_time,
+    MIN(IF(g.gt300, g.charttime, NULL))                     AS first_gt300_time,
+    COUNTIF(g.lt70)                                         AS n_lt70_in_window,
+    COUNTIF(g.gt300)                                        AS n_gt300_in_window,
+    COUNTIF(g.glucose IS NOT NULL)                          AS n_glucose_in_window
   FROM landmarks_alive AS l
   LEFT JOIN `YOUR_PROJECT.hypo_tutorial.glucose_events` AS g
     ON g.hadm_id = l.hadm_id
-   AND NOT g.cancelled_by_repeat
    AND g.charttime >= l.t_k
    AND g.charttime <  l.window_end
   GROUP BY l.stay_id, l.k
 ),
+cms_agents AS (
+  -- every hypoglycemic-agent record of the admission at its clinical times, for the CMS816
+  -- numerator (an outcome definition: no availability rule, no flowsheet-first rule)
+  SELECT hadm_id, charttime AS expo_start, charttime AS expo_end FROM `YOUR_PROJECT.hypo_tutorial.sc_doses`
+  UNION ALL
+  SELECT hadm_id, starttime, endtime FROM `YOUR_PROJECT.hypo_tutorial.icu_insulin` WHERE is_drip
+  UNION ALL
+  SELECT hadm_id, start_time, end_time FROM `YOUR_PROJECT.hypo_tutorial.emar_insulin_infusions`
+),
 cms_events AS (
-  -- a confirmed < 40 result with a hypoglycemic agent given in the 24 h
-  -- before the result: the CMS816 numerator event, independent of landmarks
+  -- the CMS816 numerator event, independent of landmarks: a result below 40
+  -- not excluded by the repeat-result rule, with a hypoglycemic agent given
+  -- in the 24 h before the result
   SELECT DISTINCT g.hadm_id, g.charttime
   FROM `YOUR_PROJECT.hypo_tutorial.glucose_events` AS g
-  JOIN exposure AS x
+  JOIN cms_agents AS x
     ON x.hadm_id = g.hadm_id
    AND x.expo_start <= g.charttime
    AND x.expo_end   >= DATETIME_SUB(g.charttime, INTERVAL 24 HOUR)
@@ -981,6 +1325,7 @@ SELECT
   eo.stay_id IS NOT NULL                                        AS emar_interval_open_at_tk,
   DATETIME_DIFF(l.t_k, r.last_hypo_admin_time, MINUTE) / 60.0   AS hrs_since_last_hypo_admin,
   e.y_lt54_24h,
+  e.y_lt54_excl_24h,
   e.y_lt40_24h,
   e.y_gt300_24h,
   c.y_cms816_24h,
@@ -999,16 +1344,17 @@ LEFT JOIN emar_open   AS eo USING (stay_id, k);
 
 
 -- ---------------------------------------------------------------------
--- 8. The numbers everything downstream depends on. Seventeen tables, all
+-- 8. The numbers everything downstream depends on. Twenty-one tables, all
 --    aggregates, all safe to paste back. In the console's statement tree
 --    some begin with WITH, not SELECT, and the tree scrolls;
 --    INFORMATION_SCHEMA.JOBS_BY_USER lists every child job if one seems
 --    to be missing.
 -- ---------------------------------------------------------------------
 
--- Table 1. Per split: rows, stays, admissions, subjects, both outcomes,
--- censoring. Rows with window_hours < 6 are the ones the notebook's
--- "short window" sensitivity drops.
+-- Table 1. Per split: rows, stays, admissions, subjects, every outcome,
+-- censoring. pos_lt54 counts every documented low; pos_lt54_excl the
+-- sensitivity endpoint after the repeat-result exclusion. Rows with
+-- window_hours < 6 are the ones the notebook's "short window" sensitivity drops.
 SELECT
   split,
   COUNT(*)                         AS landmark_rows,
@@ -1017,6 +1363,7 @@ SELECT
   COUNT(DISTINCT subject_id)       AS subjects,
   SUM(y_lt54_24h)                  AS pos_lt54,
   ROUND(100 * AVG(y_lt54_24h), 2)  AS pct_lt54,
+  SUM(y_lt54_excl_24h)             AS pos_lt54_excl,
   SUM(y_lt40_24h)                  AS pos_lt40,
   SUM(y_cms816_24h)                AS pos_cms816,
   SUM(y_gt300_24h)                 AS pos_gt300,
@@ -1280,33 +1627,40 @@ GROUP BY s.anchor_year_group
 ORDER BY s.anchor_year_group;
 
 -- Table 11. Coverage of the added sources on the landmark rows, with the same
--- window rules 02 uses: the share of rows with dialysis at the landmark (and
--- continuous dialysis), any dialysis in the look-back, an antibiotic given in
--- the look-back, an antibiotic started in it, a culture collected in it (the
--- date-only rule for specimens without a charttime), both (the suspicion-of-
--- infection proxy), and octreotide from either source. Cells under 10
--- patients are suppressed in the deck, not here.
+-- window and availability rules 02 uses: the share of rows with dialysis at
+-- the landmark (and continuous dialysis), any dialysis in the look-back, an
+-- antibiotic given in the look-back, an antibiotic started in it, a culture
+-- collected in it (the date-only rule for specimens without a charttime),
+-- both (the suspicion-of-infection proxy), and octreotide from either source.
+-- Cells under 10 patients are suppressed in the deck, not here.
 WITH lm AS (
   SELECT stay_id, hadm_id, k, t_k FROM `YOUR_PROJECT.hypo_tutorial.cohort_landmarks`
 ),
 rrt AS (
   SELECT l.stay_id, l.k,
-         MAX(IF(r.endtime > l.t_k, 1, 0))                                                   AS rrt_at_tk,
-         MAX(IF(r.endtime > l.t_k AND r.rrt_kind = 'crrt', 1, 0))                           AS crrt_at_tk,
-         MAX(IF(r.endtime > l.t_k AND r.source = 'chartevents', 1, 0))                      AS rrt_at_tk_chart_only,
+         MAX(IF(r.endtime >= l.t_k, 1, 0))                                                  AS rrt_at_tk,
+         MAX(IF(r.endtime >= l.t_k AND r.rrt_kind = 'crrt', 1, 0))                          AS crrt_at_tk,
+         MAX(IF(r.endtime >= l.t_k AND r.source = 'chartevents', 1, 0))                     AS rrt_at_tk_chart_only,
          MAX(IF(r.rrt_kind = 'ihd', 1, 0))                                                  AS ihd_24h
   FROM lm AS l
-  JOIN `YOUR_PROJECT.hypo_tutorial.icu_rrt` AS r
-    ON r.stay_id = l.stay_id AND r.starttime < l.t_k AND r.endtime >= DATETIME_SUB(l.t_k, INTERVAL 24 HOUR)
+  JOIN `YOUR_PROJECT.hypo_tutorial.rrt_at_landmark` AS r
+    ON r.stay_id = l.stay_id AND r.k = l.k AND r.endtime >= DATETIME_SUB(l.t_k, INTERVAL 24 HOUR)
   GROUP BY l.stay_id, l.k
 ),
-abx AS (
-  SELECT l.stay_id, l.k,
-         MAX(IF(a.is_first_start_in_stay AND a.starttime >= DATETIME_SUB(l.t_k, INTERVAL 24 HOUR), 1, 0)) AS started_24h
+abx_seen AS (
+  -- the antibiotic segments a landmark could see, with each agent's first known start in the stay
+  SELECT l.stay_id, l.k, l.t_k, a.itemid, a.starttime, a.endtime,
+         MIN(a.starttime) OVER (PARTITION BY l.stay_id, l.k, a.itemid) AS first_known_start
   FROM lm AS l
   JOIN `YOUR_PROJECT.hypo_tutorial.icu_antibiotics` AS a
-    ON a.stay_id = l.stay_id AND a.starttime < l.t_k AND a.endtime >= DATETIME_SUB(l.t_k, INTERVAL 24 HOUR)
-  GROUP BY l.stay_id, l.k
+    ON a.stay_id = l.stay_id AND a.starttime < l.t_k AND a.storetime < l.t_k
+),
+abx AS (
+  SELECT stay_id, k,
+         MAX(IF(first_known_start >= DATETIME_SUB(t_k, INTERVAL 24 HOUR), 1, 0)) AS started_24h
+  FROM abx_seen
+  WHERE endtime >= DATETIME_SUB(t_k, INTERVAL 24 HOUR)
+  GROUP BY stay_id, k
 ),
 cul AS (
   SELECT l.stay_id, l.k, COUNT(DISTINCT c.micro_specimen_id) AS n_cultures
@@ -1322,13 +1676,13 @@ octr AS (
   FROM lm AS l
   JOIN `YOUR_PROJECT.hypo_tutorial.emar_cohort` AS m
     ON m.hadm_id = l.hadm_id AND (m.bolus_given OR m.infusion_start) AND m.drug_class = 'octreotide'
-   AND m.charttime >= DATETIME_SUB(l.t_k, INTERVAL 24 HOUR) AND m.charttime < l.t_k
+   AND m.charttime >= DATETIME_SUB(l.t_k, INTERVAL 24 HOUR) AND m.charttime < l.t_k AND m.storetime < l.t_k
   GROUP BY l.stay_id, l.k
   UNION DISTINCT
   SELECT l.stay_id, l.k, 1
   FROM lm AS l
   JOIN `YOUR_PROJECT.hypo_tutorial.icu_octreotide` AS o
-    ON o.stay_id = l.stay_id AND o.starttime < l.t_k AND o.endtime >= DATETIME_SUB(l.t_k, INTERVAL 24 HOUR)
+    ON o.stay_id = l.stay_id AND o.starttime < l.t_k AND o.storetime < l.t_k AND o.endtime >= DATETIME_SUB(l.t_k, INTERVAL 24 HOUR)
   GROUP BY l.stay_id, l.k
 )
 SELECT
@@ -1678,14 +2032,17 @@ HAVING COUNT(*) >= 50
 ORDER BY s.anchor_year_group, s.years_after_anchor;
 
 
--- Table 18. The repeat-test rule, before and after release .20. Over the
+-- Table 18. The repeat-result rule, before and after release .20. Over the
 -- de-duplicated glucose stream of cohort admissions, per value band: how
--- many results the rule now cancels (a result below 54 contradicted by any
--- result above 80 charted within 300 seconds) and how many the rule before
--- release .20 flagged (any result whose NEXT result was >= 80 within 5 whole
--- minutes, with no "low" condition). The bands at or above 54 must show 0 in
--- the new column; what the old column shows there is what the old rule took
--- out of the glucose history and the > 300 label.
+-- many results the rule flags (a result below 54 contradicted by any
+-- result above 80 charted within 300 seconds; since release .22 the flag
+-- reaches only the CMS816 label and the sensitivity endpoint) and how many
+-- the rule before release .20 flagged (any result whose NEXT result was
+-- >= 80 within 5 whole minutes, with no "low" condition). The bands at or
+-- above 54 must show 0 in the new column; what the old column shows there
+-- is what the old rule took out of the glucose history and the > 300 label.
+-- The last column counts flagged lows whose contradicting result was
+-- entered after the low itself.
 WITH g AS (
   SELECT g.*,
          LEAD(charttime) OVER w AS next_time,
@@ -1724,18 +2081,22 @@ GROUP BY split, anchor_year_group, years_after_anchor
 HAVING COUNT(*) >= 10
 ORDER BY split, anchor_year_group, years_after_anchor;
 
--- Table 20. When each predictor record became visible, against the time the
--- features use it at. For point observations (vitals, weight, GCS; the
--- glucose stream) the entry lag storetime - charttime: 02 requires both
--- before the landmark, so the lag is what the both-times rule removes near
--- a landmark. For interval records (insulin drip segments from inputevents,
--- eMAR insulin events) the row is stored when it is finalised, usually at or
--- after its end, while the fact it carries (an infusion started at this
--- time at this rate) was visible at the bedside from its start; 02 reads a
--- running segment clipped at the landmark and never its end or its total
--- amount, which is why the storetime rule is not applied to intervals. This
--- table is the evidence for that distinction: per record kind, the lag
--- percentiles and the share of rows stored after the time the feature uses.
+-- Table 20. When each record became visible, against the time it describes.
+-- Per record kind, the entry lag (storetime minus the clinical time) with its
+-- percentiles and the share of rows entered after that time and more than an
+-- hour after it. Point observations (vitals, weight, GCS, the glucose items):
+-- storetime - charttime, what the both-times rule removes near a landmark.
+-- Interval records: storetime - starttime (when the row's start and rate
+-- became known) and storetime - endtime (whether the row was entered before
+-- or after it ended: a negative median says the entry happens at the start,
+-- so the end is written later with no entry time of its own, which is why
+-- the availability rule takes an interval's end at its nominal time except
+-- for rate changes). eMAR insulin events: storetime - charttime. Microbiology
+-- (read from physionet-data directly, the extract keeps no storetime for it):
+-- storetime - charttime of the specimen row, the lag between the draw and
+-- the result's entry, the reason cultures are counted at their collection
+-- time (view 5b). The release .20 run measured the insulin segments at a
+-- median 1 minute after their start and 67 minutes before their end.
 WITH chart AS (
   SELECT CASE WHEN itemid IN (220621, 225664, 226537) THEN 'chartevents: glucose'
               WHEN itemid IN (226512, 224639) THEN 'chartevents: weight'
@@ -1748,10 +2109,43 @@ WITH chart AS (
 ),
 drips AS (
   SELECT 'inputevents: insulin drip segment, store - start' AS kind, DATETIME_DIFF(storetime, starttime, MINUTE) AS lag_min
-  FROM `YOUR_PROJECT.hypo_tutorial.icu_insulin` WHERE is_drip AND storetime IS NOT NULL
+  FROM `YOUR_PROJECT.hypo_tutorial.icu_insulin` WHERE is_drip
   UNION ALL
   SELECT 'inputevents: insulin drip segment, store - end', DATETIME_DIFF(storetime, endtime, MINUTE)
-  FROM `YOUR_PROJECT.hypo_tutorial.icu_insulin` WHERE is_drip AND storetime IS NOT NULL
+  FROM `YOUR_PROJECT.hypo_tutorial.icu_insulin` WHERE is_drip
+  UNION ALL
+  SELECT 'inputevents: insulin bolus, store - start', DATETIME_DIFF(storetime, starttime, MINUTE)
+  FROM `YOUR_PROJECT.hypo_tutorial.icu_insulin` WHERE is_bolus
+  UNION ALL
+  SELECT 'inputevents: feed or dextrose rate segment, store - start', DATETIME_DIFF(storetime, starttime, MINUTE)
+  FROM `YOUR_PROJECT.hypo_tutorial.icu_nutrition` WHERE has_rate
+  UNION ALL
+  SELECT 'inputevents: feed or dextrose rate segment, store - end', DATETIME_DIFF(storetime, endtime, MINUTE)
+  FROM `YOUR_PROJECT.hypo_tutorial.icu_nutrition` WHERE has_rate
+  UNION ALL
+  SELECT 'inputevents: antibiotic segment, store - start', DATETIME_DIFF(storetime, starttime, MINUTE)
+  FROM `YOUR_PROJECT.hypo_tutorial.icu_antibiotics`
+),
+procs AS (
+  SELECT CASE WHEN pe.itemid IN (225792, 225794) THEN 'procedureevents: ventilation interval, store - start'
+              ELSE 'procedureevents: dialysis interval, store - start' END AS kind,
+         DATETIME_DIFF(pe.storetime, pe.starttime, MINUTE) AS lag_min
+  FROM `YOUR_PROJECT.hypo_tutorial.src_procedureevents` AS pe
+  JOIN `YOUR_PROJECT.hypo_tutorial.stay_base` AS b USING (stay_id)
+  WHERE pe.storetime IS NOT NULL
+    AND (pe.itemid IN (225792, 225794) OR pe.itemid IN (SELECT itemid FROM `physionet-data.mimiciv_3_1_icu.d_items`
+                                                        WHERE linksto = 'procedureevents' AND REGEXP_CONTAINS(LOWER(label), r'dialysis|crrt|cvvh|scuf')
+                                                          AND NOT REGEXP_CONTAINS(LOWER(label), r'catheter|filter change')))
+  UNION ALL
+  SELECT CASE WHEN pe.itemid IN (225792, 225794) THEN 'procedureevents: ventilation interval, store - end'
+              ELSE 'procedureevents: dialysis interval, store - end' END,
+         DATETIME_DIFF(pe.storetime, pe.endtime, MINUTE)
+  FROM `YOUR_PROJECT.hypo_tutorial.src_procedureevents` AS pe
+  JOIN `YOUR_PROJECT.hypo_tutorial.stay_base` AS b USING (stay_id)
+  WHERE pe.storetime IS NOT NULL
+    AND (pe.itemid IN (225792, 225794) OR pe.itemid IN (SELECT itemid FROM `physionet-data.mimiciv_3_1_icu.d_items`
+                                                        WHERE linksto = 'procedureevents' AND REGEXP_CONTAINS(LOWER(label), r'dialysis|crrt|cvvh|scuf')
+                                                          AND NOT REGEXP_CONTAINS(LOWER(label), r'catheter|filter change')))
 ),
 emar AS (
   SELECT 'emar: insulin event, store - chart' AS kind, DATETIME_DIFF(e.storetime, e.charttime, MINUTE) AS lag_min
@@ -1760,10 +2154,18 @@ emar AS (
   WHERE e.storetime IS NOT NULL
     AND REGEXP_CONTAINS(LOWER(e.medication), r'insulin')
 ),
+micro AS (
+  SELECT 'microbiologyevents: specimen row, store - chart' AS kind, DATETIME_DIFF(m.storetime, m.charttime, MINUTE) AS lag_min
+  FROM `physionet-data.mimiciv_3_1_hosp.microbiologyevents` AS m
+  JOIN (SELECT DISTINCT hadm_id FROM `YOUR_PROJECT.hypo_tutorial.cohort_landmarks`) AS c USING (hadm_id)
+  WHERE m.storetime IS NOT NULL AND m.charttime IS NOT NULL
+),
 lags AS (
   SELECT kind, lag_min FROM chart WHERE kind IS NOT NULL
   UNION ALL SELECT kind, lag_min FROM drips
+  UNION ALL SELECT kind, lag_min FROM procs
   UNION ALL SELECT kind, lag_min FROM emar
+  UNION ALL SELECT kind, lag_min FROM micro
 )
 SELECT
   kind,
@@ -1774,5 +2176,77 @@ SELECT
   APPROX_QUANTILES(lag_min, 100)[OFFSET(90)]                  AS lag_p90_min,
   APPROX_QUANTILES(lag_min, 100)[OFFSET(99)]                  AS lag_p99_min
 FROM lags
+GROUP BY kind
+ORDER BY kind;
+
+-- Table 21. What the availability rule changes at the landmarks: the
+-- landmark-level complement of table 20. For each kind of record, over the
+-- at-risk landmark rows, the records in use by their clinical times alone
+-- (the rule before release .22: started or charted before t_k and running at
+-- t_k or inside the look-back), and among them the share entered at or after
+-- t_k, which the rule now withholds from that landmark; then the rows that
+-- lose at least one such record. The last kind counts the rate-change ends
+-- written after the landmark: segments that ended before t_k by their
+-- nominal end but whose next segment was entered after t_k, which the rule
+-- keeps running at t_k because that is what the record showed.
+WITH lm AS (
+  SELECT stay_id, hadm_id, k, t_k FROM `YOUR_PROJECT.hypo_tutorial.cohort_landmarks`
+),
+records AS (
+  SELECT '01 insulin drip segment running at t_k' AS kind, l.stay_id, l.k, d.storetime >= l.t_k AS late
+  FROM lm AS l JOIN `YOUR_PROJECT.hypo_tutorial.icu_insulin` AS d
+    ON d.hadm_id = l.hadm_id AND d.is_drip AND d.starttime < l.t_k AND d.endtime >= l.t_k
+  UNION ALL
+  SELECT '02 insulin drip segment in the look-back', l.stay_id, l.k, d.storetime >= l.t_k
+  FROM lm AS l JOIN `YOUR_PROJECT.hypo_tutorial.icu_insulin` AS d
+    ON d.hadm_id = l.hadm_id AND d.is_drip AND d.starttime < l.t_k AND d.endtime >= DATETIME_SUB(l.t_k, INTERVAL 24 HOUR)
+  UNION ALL
+  SELECT '03 insulin bolus (inputevents) in the look-back', l.stay_id, l.k, d.storetime >= l.t_k
+  FROM lm AS l JOIN `YOUR_PROJECT.hypo_tutorial.icu_insulin` AS d
+    ON d.hadm_id = l.hadm_id AND d.is_bolus AND d.starttime >= DATETIME_SUB(l.t_k, INTERVAL 24 HOUR) AND d.starttime < l.t_k
+  UNION ALL
+  SELECT '04 eMAR hypoglycemic-agent dose in the look-back', l.stay_id, l.k, m.storetime >= l.t_k
+  FROM lm AS l JOIN `YOUR_PROJECT.hypo_tutorial.emar_cohort` AS m
+    ON m.hadm_id = l.hadm_id AND m.bolus_given AND m.drug_class IN ('insulin', 'sulfonylurea', 'meglitinide')
+   AND m.charttime >= DATETIME_SUB(l.t_k, INTERVAL 24 HOUR) AND m.charttime < l.t_k
+  UNION ALL
+  SELECT '05 eMAR insulin infusion event in the look-back', l.stay_id, l.k, e.storetime >= l.t_k
+  FROM lm AS l JOIN `YOUR_PROJECT.hypo_tutorial.emar_insulin_events` AS e
+    ON e.hadm_id = l.hadm_id AND e.charttime >= DATETIME_SUB(l.t_k, INTERVAL 24 HOUR) AND e.charttime < l.t_k
+  UNION ALL
+  SELECT '06 feed or dextrose rate segment running at t_k', l.stay_id, l.k, n.storetime >= l.t_k
+  FROM lm AS l JOIN `YOUR_PROJECT.hypo_tutorial.icu_nutrition` AS n
+    ON n.stay_id = l.stay_id AND n.has_rate AND n.starttime < l.t_k AND n.endtime >= l.t_k
+  UNION ALL
+  SELECT '07 vasopressor segment in the look-back', l.stay_id, l.k, COALESCE(ie.storetime, ie.starttime) >= l.t_k
+  FROM lm AS l JOIN `YOUR_PROJECT.hypo_tutorial.src_inputevents` AS ie
+    ON ie.stay_id = l.stay_id AND ie.itemid IN (221906, 221289, 221662, 221653, 222315, 221749, 221986)
+   AND COALESCE(ie.statusdescription, '') != 'Rewritten' AND ie.starttime < l.t_k AND ie.endtime >= DATETIME_SUB(l.t_k, INTERVAL 24 HOUR)
+  UNION ALL
+  SELECT '08 ventilation interval at t_k', l.stay_id, l.k, COALESCE(pe.storetime, pe.starttime) >= l.t_k
+  FROM lm AS l JOIN `YOUR_PROJECT.hypo_tutorial.src_procedureevents` AS pe
+    ON pe.stay_id = l.stay_id AND pe.itemid IN (225792, 225794) AND pe.starttime <= l.t_k AND pe.endtime > l.t_k
+  UNION ALL
+  SELECT '09 dialysis interval at t_k', l.stay_id, l.k, r.storetime >= l.t_k
+  FROM lm AS l JOIN `YOUR_PROJECT.hypo_tutorial.icu_rrt` AS r
+    ON r.stay_id = l.stay_id AND r.starttime < l.t_k AND r.endtime > l.t_k
+  UNION ALL
+  SELECT '10 antibiotic segment in the look-back', l.stay_id, l.k, a.storetime >= l.t_k
+  FROM lm AS l JOIN `YOUR_PROJECT.hypo_tutorial.icu_antibiotics` AS a
+    ON a.stay_id = l.stay_id AND a.starttime < l.t_k AND a.endtime >= DATETIME_SUB(l.t_k, INTERVAL 24 HOUR)
+  UNION ALL
+  SELECT '11 insulin drip rate change in the look-back, written after t_k', l.stay_id, l.k, d.end_storetime >= l.t_k
+  FROM lm AS l JOIN `YOUR_PROJECT.hypo_tutorial.icu_insulin` AS d
+    ON d.hadm_id = l.hadm_id AND d.is_drip AND d.end_storetime IS NOT NULL
+   AND d.endtime >= DATETIME_SUB(l.t_k, INTERVAL 24 HOUR) AND d.endtime < l.t_k
+)
+SELECT
+  kind,
+  COUNT(*)                                                                      AS records_in_use_by_clinical_time,
+  COUNT(DISTINCT CONCAT(CAST(stay_id AS STRING), '-', CAST(k AS STRING)))       AS landmark_rows_with_the_record,
+  COUNTIF(late)                                                                 AS records_entered_at_or_after_tk,
+  ROUND(100 * COUNTIF(late) / COUNT(*), 2)                                      AS pct_records_entered_after_tk,
+  COUNT(DISTINCT IF(late, CONCAT(CAST(stay_id AS STRING), '-', CAST(k AS STRING)), NULL)) AS landmark_rows_losing_a_record
+FROM records
 GROUP BY kind
 ORDER BY kind;

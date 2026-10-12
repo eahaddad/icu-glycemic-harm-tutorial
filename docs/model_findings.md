@@ -406,6 +406,17 @@ verdicts stand as written in the first section.
   checks the Drive account.
 - Release .13: `docs/model_results/` (the .12 run's output, the evidence behind the deck); logistic fits
   at `tol=1e-6`; the precision-recall axis.
+- Release .22 (the second review's corrections, the section "The second review" below): the primary label
+  counts every documented result below 54 and `y_lt54_excl_24h` carries the repeat-excluded definition as a
+  sensitivity endpoint (the notebook's fifth sensitivity refits arm B on it); the CMS816 endpoint keeps the
+  exclusion; nothing is removed on the feature side. Availability on every record: `landmark_grid`,
+  `emar_insulin_events`, `emar_drips_at_landmark`, `drips_at_landmark` and `rrt_at_landmark` in `01`, storetime
+  and `end_storetime` through `icu_insulin`, `icu_nutrition`, `icu_rrt`, `icu_antibiotics`, `icu_octreotide`,
+  `sc_doses` and `emar_cohort`, the at-risk rule and every `02` join gated by entry time, the flowsheet flag by
+  the first segment both started and entered, amount-derived rates only for complete segments, the eMAR cap
+  binding over a late Stopped; deterministic tiebreakers on every last-value window; tables 20 and 21; the check
+  tables named after their headers (`table01` to `table21`); the SQL tests in the repository
+  (`tests/make_synthetic.py`, `run_pipeline.py`, `prefix_invariance.py`) with duckdb and sqlglot pinned.
 - Release .21: the evidence folder replaced by the release .20 run (56 files) and every number in the README,
   the runbook, the design notes, this file and the deck regenerated from it; the code is the .20 code.
 - Release .20: the review's corrections (the section above): the repeat rule low-only, exact and
@@ -548,13 +559,15 @@ src_procedureevents 0.03, src_microbiologyevents 0.01), against 2.47 before the 
 landmark-time flowsheet flag: eMAR intervals now count at landmarks before a stay's first flowsheet segment.
 The 49 added > 300 events are high values the old repeat flag had removed. The one lost < 54 event is a low
 contradicted by a repeat within 300 seconds that was not the next result. Leakage assertion 0 of 128,135;
-Table 1b: 11.35% of ICU glucose results stored after their charttime (median 7 min, p90 24), 949 straddling
-rows; the lab panel 245 of 7.3 million.
+Table 1b: 11.35% of ICU glucose results carry a charttime later than their storetime (the value was entered,
+then given a nominal time a median 7 min later, p90 24), 949 landmark rows with such a value straddling the
+landmark; the lab panel 245 of 7.3 million. (Releases .20 and .21 stated this direction backwards in the
+deck and the README; the table's column is `stored_before_charttime`.)
 
 ### What the three new tables said
 
 Table 18, the repeat rule. The rule before release .20 had flagged 36,816 results at or above 54 (837 in 54 to
-79, 34,311 in 80 to 300, 1,668 above 300) that were never false positives, and dropped them from the glucose
+79, 34,311 in 80 to 300, 1,668 above 300) that no definition of the exclusion covers, and dropped them from the glucose
 history, the monitoring counts and the > 300 label. The corrected rule cancels 71 results below 40 and 88 in
 40 to 53 (the old rule had caught 67 and 87 of them, looking only at the next result) and nothing at or above
 54. In 91 of the 159 cancelled lows the contradicting result was stored later than the low itself, which is
@@ -576,9 +589,10 @@ charttime alone would have used them. Interval records are not what the review a
 the correction assumed either: insulin drip segments are stored a median 1 minute after their start (p90 83,
 p99 616) and a median 67 minutes before their end (10.5% after the end), so the row exists in the database
 while the infusion runs; the eMAR's insulin events a median 1 minute after their charttime (p90 74). A
-storetime rule on segments is therefore feasible, would drop the running segments whose entry lag spans the
-landmark (the start-to-store lag is over 83 minutes for a tenth of segments), and is the next refinement;
-the clipped-segment rule in place reads only the start and the rate, which the pump showed at the bedside.
+storetime rule on segments is therefore feasible and release .22 applies it (the section on the second
+review below); the release .20 argument that the clipped-segment rule read only the start and the rate was
+wrong, since `running_at_tk`, `seg_end`, `hrs_since_drip_stop` and the amount-derived rates all read the
+segment's end.
 
 ### Headline (arm, outcome, group; AUROC [95% bootstrap], AUPRC, O/E, slope)
 
@@ -644,11 +658,86 @@ Monitoring: 11,717 rows with an infusion running at t_k; 5.7% of the rows withou
 result in the label window (6,691 of 116,418) against 0.8% with one (95 of 11,717). Censoring unchanged:
 23.55% of windows under 24 h, 8.50% under 6 h.
 
+## The second review of 12 October 2026 and release .22: the endpoint, availability on every record, a test that enforces it
+
+The reviewer read commit b0f2c53 (release .21), the saved tables and the deck, accepted the seven corrections
+of release .20, and made five points. What each one says, what was checked, and what release .22 does:
+
+1. **The primary endpoint must keep every documented low. Agreed, done.** The release .20 label had extended
+   CMS816's repeat-result exclusion from its < 40 measure to the < 54 outcome and called a contradicted low a
+   false positive. The sequence low-then-normal within five minutes does not establish a measurement error:
+   treatment between two draws, two sampling methods and meter error all produce it. `y_lt54_24h` now counts
+   every documented result below 54 in the window; `y_lt54_excl_24h` carries the excluded definition as a
+   sensitivity endpoint, which the notebook's fifth sensitivity refits arm B on and scores against; `y_cms816_24h`
+   keeps CMS's own conditions (< 40, not excluded, an agent in the prior 24 h); `y_lt40_24h` counts every
+   documented result below 40. The wording everywhere is "excluded by the repeat-result rule". The feature-side
+   exclusion is gone rather than tightened: the features use every documented result known at the landmark,
+   which makes the question of the repeat's two timestamps moot and the glucose history exactly what the chart
+   showed. On the fixture, the change moves one test row's label (a 35 at 06:00 contradicted by a 95 at 06:03
+   now counts) and table 1's `pos_lt54_excl` column carries the old count.
+
+2. **Eligibility and predictors must be built from what was available at each landmark. Agreed, done, and the
+   release .20 claim corrected.** The claim that the clipped-segment rule "never reads the end or the total
+   amount" was wrong: `running_at_tk`, `seg_end`, `hrs_since_drip_stop` and the `amount / hours` rates all read
+   the segment's end. Table 20 had shown where the entry time of a segment sits (a median 1 minute after its
+   start, 67 minutes before its end), which is what the rule now follows. In `01`: `landmark_grid` (one row per
+   eligible stay and day); `drips_at_landmark`, one row per landmark and drip record visible at it, an
+   inputevents segment visible when both its start and its storetime precede t_k, its end known when the segment
+   ended before t_k and, for a rate change, the next segment was entered before t_k (`end_storetime`, the one
+   end the data timestamps), running at t_k otherwise, an amount-derived rate used only once the segment is
+   complete; `emar_drips_at_landmark`, the eMAR state rebuilt at every landmark from the events charted and
+   entered before it, with the cap now binding over a late Stopped in the descriptive view too; `rrt_at_landmark`,
+   the dialysis record rebuilt the same way (the first run of the prefix test caught a CRRT charting entered
+   after the landmark extending an interval's end). The flowsheet-source flag is true at t_k only when a segment
+   had both started and been entered. The at-risk rule reads `drips_at_landmark` and `sc_doses` under the
+   both-times rule, and `02` reads the same views, so eligibility and predictors agree by construction; every
+   other `02` join (eMAR, feeds, dextrose, vasopressors, ventilation, antibiotics with the first known start per
+   landmark, octreotide, weight, GCS, vitals) is gated by entry time. Two things the data cannot timestamp are
+   stated rather than assumed: a Stopped, Paused or FinishedRunning end is taken at its nominal time, and a
+   culture is counted at its collection time because the microbiology row's storetime dates the result, days
+   later (table 20 now measures it). Table 21 reports, per record kind, the records in use at the landmarks by
+   clinical time that had not been entered by then.
+
+3. **Tests that enforce the rules, in the repository. Done.** `tests/make_synthetic.py` plants the reviewer's
+   cases (a flowsheet segment started an hour before a landmark and entered 30 minutes after it; a rate change
+   written after the landmark; an eMAR Stopped charted five minutes before a landmark and entered half an hour
+   after; an eMAR start with 16 hours of silence before its Stopped; a rate-less segment crossing a landmark; a
+   low at 09:59 whose repeat is charted at 10:02 and entered at 09:58; the 300 against 301 second and the 80
+   against 81 mg/dL boundaries; an eMAR dose charted before a landmark and entered after it, which must not make
+   the stay eligible), with entry times that follow table 20. `tests/run_pipeline.py` runs the four SQL files on
+   it and the fixture's docstring states every expected number. `tests/prefix_invariance.py` is the general test:
+   for each of the 11 landmarks of the grid it rebuilds the database as the EHR held it at that moment (records
+   entered at or after the landmark removed, a rate change not yet written left open) and requires the landmark
+   to be at risk in both or neither and all 145 inputs to be identical; it also doubles the completed amount of
+   the crossing rate-less segment. It passes, and its first run found two faults: the dialysis end above, and a
+   lab result and a fingerstick sharing a charttime with different values, whose order in the last-value windows
+   was undefined (BigQuery returns ties in no fixed order), now broken by entry time and value. The three
+   scripts need no data and no credentials; duckdb 1.5.6 and sqlglot 30.22.0 are pinned for them.
+
+4. **The split is an exploratory internal validation. Agreed, stated.** Patient-disjoint, by anchor group rather
+   than by calendar time, and development-informed; the anchor-year-only sensitivity scores the test rows alone
+   and leaves the training rows' later admissions in place, which the notebook now says. A temporal claim would
+   need admission-period splits with the patients who span two periods handled explicitly; an untouched one,
+   patients whose records did not shape the pipeline. Raw models primary, Platt exploratory, nested calibration
+   deferred: unchanged and stated.
+
+5. **The deck must be regenerated from the rerun's files.** The deck the reviewer received was a stale copy with
+   the .16 numbers; the current deck carries the .20 numbers but still had the timestamp direction backwards
+   (slide 10), called < 54 a CMS hospital-harm endpoint (slide 3), read the decision curves as proof of
+   benefit (slide 22) and the shift group's O/E interval as excluding 1 (slide 24). Those four are corrected in
+   wording now; every number, figure and speaker note is regenerated from the release .22 result files once the
+   rerun is in, with the outcome described as a documented event before 24 hours, ICU discharge or death and
+   the decision curves as potential clinical utility.
+
+What the rerun has to show before the deck is rebuilt: table 1 (the primary count rises by the contradicted
+lows, `pos_lt54_excl` matches the .20 count of 1,223 / 218 / 187 up to the availability changes), table 21
+(how many drip, dose, feed, ventilation and dialysis records the rule withholds at the landmarks), the
+procedureevents lag in table 20 (if ventilation intervals turn out to be entered at their end rather than at
+their start, `invasive_vent_at_tk` loses most of its rows and a chartevents ventilator setting would replace
+it in a later release), the leakage assertion at 0, and the headline against .20.
+
 ## What is still open
 
-- A storetime rule on the infusion segments (table 20: a tenth of segments are entered more than 83
-  minutes after their start), the strict version of real-time availability for intervals; one line in
-  `02_features.sql` and a pipeline rerun.
 - A clinician's reading of the deck's wording.
 - The drip subgroup: 0.69 is a limitation to state, not to fix before the deadline. The features that
   would address it (glucose trajectory over the last 6 h, rate changes and time since the last change,

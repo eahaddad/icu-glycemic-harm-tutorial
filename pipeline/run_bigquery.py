@@ -5,7 +5,9 @@ This is the student path: MIMIC-IV v3.1 already sits on BigQuery for every
 credentialed user, so nothing is downloaded or installed. Each SQL file runs as
 one script job in the student's own sandbox project (the YOUR_PROJECT placeholder
 is filled from --project, no file is edited), every SELECT inside it comes back
-as a CSV, every statement's billed bytes are printed (the README's cost table),
+as a CSV (01's check tables as 01_cohort_labels_table01.csv ... table21.csv,
+named after their "-- Table N." headers; the other files' by statement index,
+02_features_check01.csv ...), every statement's billed bytes are printed (the README's cost table),
 and the final tables are pulled into parquet files that the analysis notebooks
 read. After the pull, BigQuery is not needed again: the sandbox's 60-day table
 expiry and lifetime storage quota stop mattering.
@@ -23,8 +25,8 @@ What each step costs (measured 11 October 2026, README cost table). extract:
 2.47 GiB of the sandbox's lifetime 10 GiB storage, so it refuses to run when
 the src_* tables already exist unless --force is given. pipeline: 01 4.5 GiB
 with thirteen check tables (about 5.5 with fifteen) and 02 5.4 GiB per run
-(two of its check queries recompute the features view), no storage beyond two
-one-row tables and cohort_landmarks (a few MB). pull: 2.98 GiB (features 2.94),
+(two of its check queries recompute the features view), no storage beyond the
+params row, landmark_grid and cohort_landmarks (tens of MB). pull: 2.98 GiB (features 2.94),
 then the results travel through the BigQuery Storage Read API when the project
 allows it (reads of query results are free) and otherwise through the plain
 REST read, which is free and slower. The measured numbers print at the end of
@@ -84,6 +86,16 @@ def explain(err, project):
         return QUOTA
     return text
 
+def check_names(text, n_selects):
+    """File names for a script's SELECT results, in order. A file whose SELECT statements each carry a
+    '-- Table N.' header (01) names them table01 ... table21, so a view added to the file does not rename
+    every result; any other file (00, 00b, 02) numbers them by statement index (check09, check01 ...)."""
+    import re
+    names = re.findall(r"^-- Table (\w+)\.", text, flags=re.M)
+    if len(names) == n_selects:
+        return [f"table{n.zfill(2)}" for n in names]
+    return None
+
 def run_script(client, project, fname, results_dir):
     """One SQL file as one BigQuery script job. Returns [(statement index, DataFrame)] for its SELECTs
     and prints bytes billed per statement, read from the script's child jobs. If a statement fails, the
@@ -99,7 +111,8 @@ def run_script(client, project, fname, results_dir):
     except (BadRequest, Forbidden) as e:
         failure = e
     children = sorted(client.list_jobs(parent_job=parent.job_id, max_results=200), key=lambda j: j.created)
-    results, total = [], 0
+    names = check_names(text, sum(1 for j in children if j.statement_type == "SELECT"))
+    results, total, n_select = [], 0, 0
     for i, job in enumerate(children):
         gib = (job.total_bytes_billed or 0) / 2**30
         total += gib
@@ -115,7 +128,9 @@ def run_script(client, project, fname, results_dir):
                 print(df.head(40).to_string())
             if results_dir is not None:
                 Path(results_dir).mkdir(parents=True, exist_ok=True)
-                df.to_csv(Path(results_dir, f"{Path(fname).stem}_check{i:02d}.csv"), index=False)
+                tag = names[n_select] if names else f"check{i:02d}"
+                df.to_csv(Path(results_dir, f"{Path(fname).stem}_{tag}.csv"), index=False)
+            n_select += 1
     print(f"{fname}: {len(children)} statements, {total:.1f} GiB billed, {time.time() - t0:,.0f}s"
           + (f", {len(results)} check tables saved before the failure" if failure else ""))
     if failure:

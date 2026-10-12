@@ -118,8 +118,8 @@ with 01 tables 18 to 20) are in `docs/model_findings.md`, "The review of 12 Octo
 first flowsheet segment), 37,170 stays, 29,384 patients; train 88,554 rows / 1,223 lows / 8,512 highs, test
 21,744 / 218 / 2,116, shift test 17,837 / 187 / 1,624. The 49 added highs are values the old repeat flag had
 removed; the one lost low is a low contradicted by a repeat within 300 seconds that was not the next result.
-Leakage assertion 0 of 128,135; Table 1b 11.35% of ICU glucose results stored after their charttime, 949
-straddling rows. The three new tables: table 18 (the old flag had removed 36,816 results at or above 54; the
+Leakage assertion 0 of 128,135; Table 1b 11.35% of ICU glucose results with a charttime later than their
+storetime (entered first, timed later), 949 straddling rows. The three new tables: table 18 (the old flag had removed 36,816 results at or above 54; the
 corrected rule cancels 159 lows, 91 of them with the repeat stored later than the low), table 19 (52% of
 training rows are anchor-year admissions, 18% certainly fall in 2017 or later; 77.7% of primary test rows and
 92.5% of shift test rows are anchor-year admissions), table 20 (vitals entered a median 22 minutes after
@@ -184,3 +184,9 @@ The cohort rules are closed with the sixth run; what follows is carried into the
 - `INFUSION_CAP_HOURS` is 16 h on the strength of the closed-interval gaps; with flowsheet first it governs only the stays without a flowsheet record, mostly 2020 to 2022.
 - 2020 to 2022 is the documentation-shift test; table 16 showed no care unit with complete features in it (the one unit at 98% has 59 stays), so no clean subgroup of that era exists, and table 17 showed the gap opens on a date inside the window rather than by unit or era.
 - The gap itself: about 60% of the 2020 to 2022 ICU stays in MIMIC-IV v3.1 have no inputevents or procedureevents rows while their chartevents are complete, and the share falls to zero for admissions two or more years after a 2020 to 2022 anchor year. It is not in the v3.0 or v3.1 release notes; it belongs in the deck as a data finding and, as a courtesy to other users, in a mimic-code discussion with tables 14, 16 and 17 as the evidence.
+
+After the second review (release .22, 12 October 2026; `docs/model_findings.md` has the verdicts):
+
+- `01_cohort_labels.sql`: the landmark grid as a table (`landmark_grid`, with the per-landmark flowsheet flag from segments both started and entered before t_k); the drip record as each landmark could see it (`emar_insulin_events`, `emar_drips_at_landmark`, `drips_at_landmark`: visibility by storetime, the end known only when the data timestamps it, amount-derived rates for complete segments, the eMAR state rebuilt from the visible events, the cap binding over a late Stopped) and the dialysis record likewise (`rrt_at_landmark`); storetime through every treatment view and `end_storetime` on `icu_insulin` and `icu_nutrition`; the at-risk rule on the visible records under the both-times rule; the primary label unfiltered, `y_lt54_excl_24h` as the sensitivity endpoint, `y_lt40_24h` unfiltered, the CMS816 label with CMS's own conditions and its numerator read from the static records; tables 20 (procedureevents, feeds, boluses, antibiotics and microbiology added) and 21 (what the rule withholds at the landmarks); the check tables named after their headers (`table01` to `table21`); `insulin_drips` and `is_first_start_in_stay` removed.
+- `02_features.sql`: every treatment join gated by entry time; the drip features from `drips_at_landmark`, the dialysis features from `rrt_at_landmark`, the antibiotic first start per landmark; no feature-side glucose exclusion; deterministic tiebreakers on every last-value window; the fifth label carried.
+- `src/hypo_tutorial/columns.py`: `y_lt54_excl_24h` among the labels. `pipeline/run_bigquery.py`: the check-table naming. `tests/`: `make_synthetic.py`, `run_pipeline.py`, `prefix_invariance.py` in the repository.
