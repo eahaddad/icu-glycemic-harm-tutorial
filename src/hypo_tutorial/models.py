@@ -24,11 +24,25 @@ calibration, so the tuning criterion is the proper scoring rule for
 probabilities, not AUROC (which is blind to calibration) and not accuracy
 (meaningless at a 1% event rate).
 
+Preprocessing inside the folds. The feature preparation (winsorising cut-points,
+medians, rare-level pooling, standardisation; features.py) is refitted on each
+fold's training rows and applied to that fold's validation rows, so no statistic
+of a validation row reaches the model that is scored on it. Until release .20
+one preparation fitted on all training rows fed the cross-validation, which let
+validation-fold values into the cut-points and medians (unsupervised statistics,
+so the labels were never touched, but the review of 12 October 2026 was right
+that the folds were not clean). The final model of each arm uses the preparation
+fitted on all training rows, which is also what the test eras are transformed
+with.
+
 Out-of-fold predictions. Each fold's model scores the rows it did not see, so
-every training row gets an honest prediction; these feed the Platt recalibration
-(a logistic regression of the outcome on the model's logit, fitted on the
-out-of-fold predictions and applied to the test eras) and the training-set
-calibration plot.
+every training row gets a prediction from a model that never saw it; these feed
+the Platt recalibration (a logistic regression of the outcome on the model's
+logit, fitted on the out-of-fold predictions and applied to the test eras) and
+the training-set calibration plot. They are not untouched by model selection:
+the same folds choose C and the stopping round, so they are mildly optimistic,
+which is one more reason the recalibration is reported as a negative result and
+the raw models are primary (a nested scheme would be the strict version).
 """
 import numpy as np
 import pandas as pd
@@ -74,31 +88,42 @@ def logit(p):
 
 
 # ------------------------------------------------------------------ arm A
-def fit_logistic(X, y, groups, c_grid=C_GRID, n_splits=5, seed=2026):
-    """Grouped CV over C on log loss; returns (fitted model on all rows, out-of-fold predictions,
-    DataFrame of the CV path). X must already be imputed and standardised (FeaturePrep, for_tree=False)."""
+def _fold_matrices(df, tr, va, make_prep, for_tree):
+    """The preparation fitted on this fold's training rows only, applied to both parts."""
+    prep = make_prep().fit(df.iloc[tr])
+    return prep.transform(df.iloc[tr], for_tree=for_tree), prep.transform(df.iloc[va], for_tree=for_tree)
+
+
+def fit_logistic(df, y, groups, make_prep, X_full, c_grid=C_GRID, n_splits=5, seed=2026):
+    """Grouped CV over C on log loss, the preparation refitted inside every fold; returns (model fitted
+    on all rows, out-of-fold predictions, DataFrame of the CV path).
+    df: the raw training rows; make_prep: returns an unfitted FeaturePrep; X_full: the matrix of all
+    training rows from the preparation fitted on all of them (the one the test eras are transformed
+    with), used for the final model only."""
     splits = folds(y, groups, n_splits, seed)
+    matrices = [_fold_matrices(df, tr, va, make_prep, for_tree=False) for tr, va in splits]
     path = []
     oof_by_c = {}
     for C in c_grid:
         oof = np.full(len(y), np.nan)
-        for tr, va in splits:
+        for (tr, va), (Xtr, Xva) in zip(splits, matrices):
             m = LogisticRegression(C=C, penalty="l2", solver="lbfgs", max_iter=5000, tol=LR_TOL)
-            m.fit(X.iloc[tr], y[tr])
-            oof[va] = m.predict_proba(X.iloc[va])[:, 1]
+            m.fit(Xtr, y[tr])
+            oof[va] = m.predict_proba(Xva)[:, 1]
         oof_by_c[C] = oof
         path.append({"C": C, "cv_log_loss": log_loss(y, _clip(oof))})
     path = pd.DataFrame(path)
     best_c = float(path.loc[path["cv_log_loss"].idxmin(), "C"])
-    model = LogisticRegression(C=best_c, penalty="l2", solver="lbfgs", max_iter=5000, tol=LR_TOL).fit(X, y)
+    model = LogisticRegression(C=best_c, penalty="l2", solver="lbfgs", max_iter=5000, tol=LR_TOL).fit(X_full, y)
     return model, oof_by_c[best_c], path.assign(chosen=path["C"] == best_c)
 
 
 # ------------------------------------------------------------------ arm B
-def fit_lightgbm(X, y, groups, params=LGBM_PARAMS, n_splits=5, seed=2026, max_rounds=LGBM_MAX_ROUNDS,
-                 early_stop=LGBM_EARLY_STOP):
-    """Grouped CV with early stopping on the validation log loss; the final model is refit on all
-    rows with the mean best iteration. Returns (model, out-of-fold predictions, per-fold table)."""
+def fit_lightgbm(df, y, groups, make_prep, X_full, params=LGBM_PARAMS, n_splits=5, seed=2026,
+                 max_rounds=LGBM_MAX_ROUNDS, early_stop=LGBM_EARLY_STOP):
+    """Grouped CV with early stopping on the validation log loss, the preparation refitted inside
+    every fold; the final model is refit on all rows (X_full, see fit_logistic) with the mean best
+    iteration. Returns (model, out-of-fold predictions, per-fold table)."""
     import lightgbm as lgb
     splits = folds(y, groups, n_splits, seed)
     params = dict(params, seed=seed)
@@ -108,16 +133,17 @@ def fit_lightgbm(X, y, groups, params=LGBM_PARAMS, n_splits=5, seed=2026, max_ro
     oof = np.full(len(y), np.nan)
     rows = []
     for i, (tr, va) in enumerate(splits):
-        dtr = lgb.Dataset(X.iloc[tr], y[tr])
-        dva = lgb.Dataset(X.iloc[va], y[va], reference=dtr)
+        Xtr, Xva = _fold_matrices(df, tr, va, make_prep, for_tree=True)
+        dtr = lgb.Dataset(Xtr, y[tr])
+        dva = lgb.Dataset(Xva, y[va], reference=dtr)
         booster = lgb.train(params, dtr, num_boost_round=max_rounds, valid_sets=[dva],
                             callbacks=[lgb.early_stopping(early_stop, verbose=False), lgb.log_evaluation(0)])
-        oof[va] = booster.predict(X.iloc[va], num_iteration=booster.best_iteration)
+        oof[va] = booster.predict(Xva, num_iteration=booster.best_iteration)
         rows.append({"fold": i, "best_iteration": booster.best_iteration,
                      "valid_log_loss": booster.best_score["valid_0"]["binary_logloss"]})
     table = pd.DataFrame(rows)
     n_rounds = max(10, int(round(table["best_iteration"].mean())))
-    model = lgb.train(params, lgb.Dataset(X, y), num_boost_round=n_rounds)
+    model = lgb.train(params, lgb.Dataset(X_full, y), num_boost_round=n_rounds)
     return model, oof, table.assign(final_rounds=n_rounds)
 
 

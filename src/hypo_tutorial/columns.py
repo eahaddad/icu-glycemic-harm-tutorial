@@ -4,7 +4,7 @@ Column roles in hypo_tutorial.features (sql/02_features.sql).
 Three kinds of column leave the SQL, and the model may see only one of them:
 
   LABELS       the four outcomes, computed from the 24 h AFTER the landmark
-  BOOKKEEPING  identifiers, times, the split, the era, reporting-only columns and
+  BOOKKEEPING  identifiers, times, the split, the era and the anchor offset, reporting-only columns and
                the drip-record flags. None of these describes the patient at t_k
                in a way a model should learn from: ids and times would memorise
                patients; `label_window_n_glucose` counts results in the label
@@ -26,7 +26,7 @@ LABELS = ["y_lt54_24h", "y_lt40_24h", "y_cms816_24h", "y_gt300_24h"]
 OUTCOMES = {"lt54": "y_lt54_24h", "gt300": "y_gt300_24h"}
 
 BOOKKEEPING = [
-    "subject_id", "hadm_id", "stay_id", "k", "t_k", "window_end", "split", "anchor_year_group",
+    "subject_id", "hadm_id", "stay_id", "k", "t_k", "window_end", "split", "anchor_year_group", "years_after_anchor",
     "window_hours", "race", "insurance", "language", "marital_status", "label_window_n_glucose",
     "max_feature_time",
     # which record saw the drip (02 header): subgroup tables, never inputs

@@ -191,6 +191,14 @@ def main():
             # the first alone = a run that stopped partway (a dropped Colab session, a quota message)
             first, last = exists("src_chartevents"), exists("src_microbiologyevents")
             if first and last:
+                # release .20 added storetime to src_inputevents (and the other extracts): an extract without it
+                # predates the current SQL and 01 would fail on the missing column
+                fields = {f.name for f in client.get_table(f"{args.project}.hypo_tutorial.src_inputevents").schema}
+                if "storetime" not in fields:
+                    sys.exit("the src_* tables in this project are from a release before .20 (src_inputevents has no "
+                             "storetime column, which 01 and 02 now read). Run this step again with --force: it rewrites "
+                             "every src_* table (about 2.5 GiB of a sandbox's lifetime 10 GiB; nothing on a project "
+                             "with billing). In the notebook, set EXTRACT_FORCE to True for one run.")
                 sys.exit("src_* tables already exist in this project; 00b must not run twice on a sandbox "
                          "(each run spends about 2.5 GiB of the lifetime 10 GiB). Skip to --step pipeline. "
                          "Use --force only if you mean to rewrite them.")

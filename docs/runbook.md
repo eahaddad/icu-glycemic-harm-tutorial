@@ -67,16 +67,19 @@ on BigQuery` or `skipped, features.parquet is present`.
 | cell | what it does | what you should see |
 |---|---|---|
 | `# 1.1 Sign in` | `auth.authenticate_user()` with the PhysioNet-linked account, then `--step cost` | the month's query bytes and the dataset's storage, both 0 on a fresh project |
-| `# 1.2 Extract` | `00b_extract.sql` once, the `src_*` tables | one line per statement with bytes billed; the first real run billed 29.1 GiB and stored 2.47 GiB; the last statement prints rows and GiB per table. Minutes, not hours. On a project that already holds the extract the cell prints "already in this project; going on" |
-| `# 1.3 Pipeline` | `01` (31 statements) and `02` (4 statements) | bytes per statement; about 6.0 GiB and 100 s for `01`, 5.4 GiB and 40 s for `02` (less when BigQuery's result cache serves a repeated statement); `02`'s first check table must say `rows_violating_leakage_rule 0` |
-| `# 1.4 Pull` | `params`, `cohort_landmarks`, `features` to parquet, copied to Drive with the check tables | `3 parquet files, 256,263 rows`, then `28 MB of parquet and 20 check tables under MyDrive/hypo_tutorial/` and the three file sizes (`features.parquet 23.1 MB`) |
+| `# 1.2 Extract` | `00b_extract.sql` once, the `src_*` tables (on a project whose extract predates release .20 the runner says so: set `EXTRACT_FORCE` in the setup cell for one run, which rewrites them) | one line per statement with bytes billed; the first real run billed 29.1 GiB and stored 2.47 GiB; the last statement prints rows and GiB per table. Minutes, not hours. On a project that already holds the extract the cell prints "already in this project; going on" |
+| `# 1.3 Pipeline` | `01` (34 statements) and `02` (4 statements) | bytes per statement; about 6.0 GiB and 100 s for `01`, 5.4 GiB and 40 s for `02` (less when BigQuery's result cache serves a repeated statement); `02`'s first check table must say `rows_violating_leakage_rule 0` |
+| `# 1.4 Pull` | `params`, `cohort_landmarks`, `features` to parquet, copied to Drive with the check tables | `3 parquet files, 256,263 rows`, then `28 MB of parquet and 23 check tables under MyDrive/hypo_tutorial/` and the three file sizes (`features.parquet 23.1 MB`) |
 
 When the data stage is skipped, each of the four cells prints `data stage skipped` and nothing else.
 
-Numbers to compare with (MIMIC-IV v3.1 as of October 2026; `docs/cohort_findings.md` has the rest):
-`results/01_cohort_labels_check15.csv` (table 1 of `01`) must show train 88,552 rows / 26,538 stays /
-1,223 glucose < 54 / 8,480 > 300, test 21,743 / 6,215 / 219 / 2,109, test_shifted 17,836 / 4,416 / 187 /
-1,614, 128,131 rows in all. `02_features_check01.csv` must be 0.
+Numbers to compare with (MIMIC-IV v3.1 as of October 2026; `docs/cohort_findings.md` has the rest). The
+release .16 run gave, in `results/01_cohort_labels_check15.csv` (table 1 of `01`): train 88,552 rows /
+26,538 stays / 1,223 glucose < 54 / 8,480 > 300, test 21,743 / 6,215 / 219 / 2,109, test_shifted 17,836 /
+4,416 / 187 / 1,614, 128,131 rows in all. Release .20 changed the repeat-test rule and the drip-source
+flag (`docs/model_findings.md`, the review section), so the rows and the event counts move a little; the
+rerun's numbers replace these here. `02_features_check01.csv` must be 0 in every release. `01` now prints
+20 check tables (`check34` is table 20) and `02` three.
 
 If the pipeline or the pull fails halfway (a dropped Colab session, a quota message), fix the cause and run
 that cell again: both are written to be repeated. The extract is the exception: a complete extract refuses to
@@ -102,8 +105,9 @@ density. `2.7` writes the `eda_*.csv` tables next to the check tables.
 | `# 3.5` to `# 3.8` | figures, importance, subgroup prints, three sensitivities | PNGs under `results/figures/`; the sensitivities table |
 | `# 3.9` | library versions, `run_settings.json` | the version dict |
 
-Headline to compare with (`docs/model_results/headline_metrics.csv`, the release .16 run): arm B AUROC 0.863 on
-2017 to 2019 and 0.855 on 2020 to 2022 for glucose < 54; 0.894 and 0.882 for > 300; arm A 0.840 and 0.825.
+Headline to compare with (`docs/model_results/headline_metrics.csv`, the release .16 run; release .20's rerun
+replaces it): arm B AUROC 0.863 on the patients anchored in 2017 to 2019 and 0.855 on those anchored in 2020 to
+2022 for glucose < 54; 0.894 and 0.882 for > 300; arm A 0.840 and 0.825.
 Arm B reproduces to the last digit on any machine (`deterministic=True`); arm A to three decimals (its
 L-BFGS fit runs at a tight tolerance since release .13). Library versions can still move the last digit;
 `run_settings.json` records yours.
@@ -112,7 +116,7 @@ L-BFGS fit runs at a tight tolerance since release .13). Library versions can st
 
 `# 4.` packs `results/` into one zip on the runtime's disk (the check tables, the cohort tables, the model
 tables and figures), copies it to Drive, flushes Drive, and downloads it to your computer:
-`results_<release>_<stamp>.zip: 52 files, ... MB` and a browser download. That zip is the thing you share
+`results_<release>_<stamp>.zip: 55 files, ... MB` and a browser download. That zip is the thing you share
 or hand in. Do not download the `results/` folder from the Drive website right after the run: on the first
 real run the `figures/` folder came back empty because Drive had not finished syncing.
 

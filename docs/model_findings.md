@@ -405,6 +405,13 @@ verdicts stand as written in the first section.
   checks the Drive account.
 - Release .13: `docs/model_results/` (the .12 run's output, the evidence behind the deck); logistic fits
   at `tol=1e-6`; the precision-recall axis.
+- Release .20: the review's corrections (the section above): the repeat rule low-only, exact and
+  endpoint-specific, with `repeat_storetime`; the feature-side exclusion conditioned on availability;
+  storetime kept for every chartevents row, inputevents, procedureevents and the eMAR, and the
+  both-times rule on vitals, weight and GCS; the flowsheet-first flag per landmark; `years_after_anchor`
+  on every row with 01 tables 18 to 20 and the anchor-year-only sensitivity; the preparation refitted
+  inside every fold; the extract guard for a pre-.20 extract and `EXTRACT_FORCE`; the split relabelled
+  everywhere; the validation called development-informed.
 - Release .19: the repository is the thing a peer opens, so the setup cell clones the code from the GitHub
   repository named in its `REPO` field and checks the release marker against the notebook's (the zip on
   Drive remains the fallback when `REPO` is empty); the README was rewritten as the landing page a grader
@@ -431,9 +438,97 @@ verdicts stand as written in the first section.
   The three-notebook split had each notebook assuming another had unpacked the code; the cohort
   notebook's harness cell failed in a fresh runtime for that reason on 12 October.
 
+## The review of 12 October 2026 and release .20: four faults corrected, two claims relabelled
+
+An independent review of the repository at release .19 (the full SQL, notebook, modeling and evaluation
+code, the development history and the aggregate results) made nine points. Each was checked against the
+code line by line; the verdicts, in the reviewer's order, and what release .20 does about them:
+
+1. **The glucose repeat-test rule was wrong. Confirmed, corrected.** `glucose_events` flagged any result
+   whose next result was >= 80 within 5 whole minutes, with no condition that the result itself was
+   low, and every file then dropped the flagged rows. So a 110 followed by a 120 three minutes later was
+   removed from the glucose history, and a 350 followed by a 320 was removed from the > 300 label. The
+   rule is now: a result below 54 contradicted by any result above 80 charted within 300 seconds
+   (CMS816's exclusion, "a subsequent glucose > 80 mg/dL within five minutes", which CMS defines for its
+   < 40 measure; this tutorial extends it to the < 54 outcome on the same reasoning, that an immediately
+   contradicted low is a contaminated draw or a meter error, and says so). Results at or above 54 are
+   never cancelled; > 300 is never cancelled. 01 table 18 counts, per value band, what the new rule
+   cancels and what the old rule flagged, so the size of the fault is a number in the rerun.
+2. **The flag leaked the future into the features. Confirmed, corrected.** The flag was computed from the
+   admission's whole stream, and `02` dropped flagged results from the features, so a 45 at 07:59 could
+   be removed from the 08:00 landmark by a repeat at 08:02 that nobody had seen at 08:00. The assertion
+   on `max_feature_time` could not catch it, because the future result decided whether an earlier row
+   survived instead of appearing as a timestamp. `glucose_events` now carries `repeat_storetime`, the
+   time the contradicting result became visible, and the features drop a cancelled low only when that
+   time precedes the landmark: at the landmark the clinician had seen the low and no repeat, and so
+   does the model. The label side still uses the flag in full, as it should. The fixture plants both
+   cases (a 45 at 09:50 stored at 09:52, contradicted at 09:54 by a result stored at 10:30, landmark
+   10:00: the 45 is `glucose_last`, the label window before it does not count the 45).
+3. **Availability timestamps were missing for most predictors. Confirmed in fact; the fix is split by the
+   kind of record.** The extract kept `storetime` only for the glucose items. It now keeps it for every
+   chartevents row and for inputevents, procedureevents and the eMAR, and `02` applies the both-times
+   rule (charttime and storetime before t_k) to the vitals, weight and GCS exactly as to labs and
+   glucose. It does not apply a storetime rule to interval records, and the reason is stated rather
+   than assumed: an inputevents segment or a procedure interval is stored when it is finalised, at or
+   after its end, while the fact the feature uses (an infusion started at this time at this rate) was
+   visible at the bedside from its start; `02` reads a running segment clipped at the landmark and
+   never its end or its total amount. A storetime rule on intervals would delete every running
+   infusion from the features, the most important real-time fact in the table, and make the model
+   blind to it. On the rate-less "Continuous IV" rows, `amount / hours` is the set rate (a rate change
+   closes a segment and opens another), so a segment crossing the landmark contributes its rate and
+   its clipped duration, not its completed amount. 01 table 20 measures, per record kind, the lag
+   between entry and the time the feature uses (the share stored after it, and its percentiles), which
+   is the evidence a reader needs to judge the distinction. eMAR doses keep their administration
+   charttime for both the at-risk rule and the dose features; the same table reports their entry lag.
+4. **The flowsheet-first flag used the whole stay. Confirmed, corrected.** `stay_has_inputevents_drip`
+   was true for every landmark of a stay with any inputevents drip segment, so a segment charted on day
+   four decided, on day one, that an eMAR interval open at the landmark should be declined. The flag is
+   now evaluated per landmark from segments started before t_k; appending a later record no longer
+   changes an earlier row. The fixture plants it (an eMAR-only interval running at t_1 and a flowsheet
+   segment starting three hours after t_1: the row stays "running on the eMAR alone").
+5. **The split is patient-disjoint but not a strict temporal holdout. Confirmed, relabelled.** The split
+   is by the patient's `anchor_year_group`, and a patient's later admissions keep the group whatever
+   calendar year they fall in (table 17 shows admissions up to five years after the anchor). "Trained on
+   2008 to 2016, tested on 2017 to 2019" was too strong; every document now says "patients anchored in".
+   Every row carries `years_after_anchor` (admittime year minus anchor year, exact under MIMIC's date
+   shift), 01 table 19 tabulates it per split, and the notebook's fourth sensitivity scores the test
+   rows whose admission is in the anchor year itself. A conservative admission-period split (an
+   admission's calendar range is the group's three years shifted by the offset; keep only rows whose
+   range lies inside one period) is the strict version and is future work: with three-year groups only
+   the anchor-year admissions are certain, so it drops most later admissions, and patient-disjointness
+   conflicts with it whenever a patient spans two periods.
+6. **Preprocessing was fitted outside the cross-validation. Confirmed, corrected.** One `FeaturePrep`
+   fitted on all training rows fed the folds, so validation-fold values reached the cut-points,
+   medians, rare-level pooling and scaling (unsupervised statistics; the labels never did). `models.py`
+   now refits the preparation inside every fold on that fold's training rows; the final models and the
+   test eras use the preparation fitted on all training rows, as before. The reviewer's second remark
+   stands and is now written in the module docstring: the out-of-fold predictions are produced by the
+   same folds that choose C and the stopping round, so they are mildly optimistic; they feed the Platt
+   step, which is reported as a negative result, and the raw models are primary. A nested scheme is the
+   strict version.
+7. **The test groups took part in development. Confirmed, relabelled.** The cohort runs looked at event
+   rates and monitoring density in every era, the test groups included, when the infusion cap, the
+   drip-source rule and the primary test group were decided. Those were data-quality decisions, not
+   model tuning, and the models were never fitted on the test rows; but "never trained on" is not
+   "untouched". The results are now called a development-informed internal validation, in the deck's
+   limitations and here. A held-out random subset of patients frozen before any development is what a
+   stronger claim needs; MIMIC-IV offers no second untouched database.
+8. **Diagnosis history is restricted correctly.** Agreed; no change.
+9. **The evaluation arithmetic is right; the data validity was the open question.** Agreed. The cohort,
+   the models, the tables and the deck's numbers are regenerated by a rerun of release .20: the extract
+   again (the storetime columns; `EXTRACT_FORCE` in the setup cell, `--force` in the runner), the
+   pipeline, the pull, the models. Until that rerun the numbers quoted in this file and in the deck are
+   those of release .16 and are provisional.
+
+Not raised by the review but changed with it: the runner recognises an extract from before release
+.20 (no `storetime` on `src_inputevents`) and says what to do; the notebook's `years_after_anchor`
+is bookkeeping, never an input.
+
 ## What is still open
 
-- The deck is written (release .17); what is still open is a clinician's reading of its wording.
+- The rerun of release .20 (the extract with EXTRACT_FORCE, the pipeline, the pull, the models): the
+  cohort counts, tables 18 to 20, the headline, the fourth sensitivity. The deck's numbers follow it.
+- A clinician's reading of the deck's wording.
 - The drip subgroup: 0.69 is a limitation to state, not to fix before the deadline. The features that
   would address it (glucose trajectory over the last 6 h, rate changes and time since the last change,
   feed interruptions timed against the infusion) are future work, and a model fitted on the drip rows

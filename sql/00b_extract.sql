@@ -119,10 +119,12 @@ WHERE e.hadm_id IS NOT NULL OR i.hadm_id IS NOT NULL;
 --    O): glucose for the labels and the trajectory (every stay), and for the
 --    universe stays the seven mimic-code vitals, weight, the three GCS
 --    components, the eight CRRT settings and the per-session hemodialysis
---    output. storetime is kept for the glucose items only (the glucose
---    stream uses it for feature visibility, 02) and is NULL elsewhere, which
---    costs nothing. hadm_id, subject_id and the unit are not stored: 01 and
---    03 recover them from icustays and d_items.
+--    output. storetime (when the value was entered or validated) is kept
+--    for every row: 02 uses a value as a feature only when both its
+--    charttime and its storetime precede the landmark, for the glucose
+--    stream and for the vitals, weight and GCS alike (release .20; before it
+--    only the glucose items carried storetime). hadm_id, subject_id and the
+--    unit are not stored: 01 recovers them from icustays and d_items.
 -- ---------------------------------------------------------------------
 CREATE OR REPLACE TABLE `YOUR_PROJECT.hypo_tutorial.src_chartevents`
 CLUSTER BY itemid, stay_id AS
@@ -132,8 +134,7 @@ WITH universe_stays AS (
   JOIN `YOUR_PROJECT.hypo_tutorial.src_universe` AS u USING (hadm_id)
 )
 SELECT
-  ce.stay_id, ce.itemid, ce.charttime, ce.valuenum,
-  IF(ce.itemid IN (220621, 225664, 226537), ce.storetime, NULL) AS storetime
+  ce.stay_id, ce.itemid, ce.charttime, ce.valuenum, ce.storetime
 FROM `physionet-data.mimiciv_3_1_icu.chartevents` AS ce
 LEFT JOIN universe_stays AS u USING (stay_id)
 WHERE ce.stay_id IS NOT NULL
@@ -196,7 +197,7 @@ WHERE le.valuenum IS NOT NULL
 CREATE OR REPLACE TABLE `YOUR_PROJECT.hypo_tutorial.src_emar`
 CLUSTER BY hadm_id AS
 WITH e AS (
-  SELECT em.hadm_id, em.emar_id, em.charttime, em.medication, em.event_txt
+  SELECT em.hadm_id, em.emar_id, em.charttime, em.storetime, em.medication, em.event_txt
   FROM `physionet-data.mimiciv_3_1_hosp.emar` AS em
   JOIN `YOUR_PROJECT.hypo_tutorial.src_universe` AS w USING (hadm_id)
   WHERE em.charttime IS NOT NULL
@@ -217,7 +218,7 @@ d AS (
   JOIN (SELECT DISTINCT emar_id FROM e) AS k USING (emar_id)
   GROUP BY d.emar_id
 )
-SELECT e.hadm_id, e.emar_id, e.charttime, e.medication, e.event_txt,
+SELECT e.hadm_id, e.emar_id, e.charttime, e.storetime, e.medication, e.event_txt,
        d.dose_given, d.dose_given_unit, d.route, d.infusion_rate, d.infusion_rate_unit, d.administration_type,
        COALESCE(d.n_products, 0) AS n_products
 FROM e
@@ -244,7 +245,7 @@ WITH universe_stays AS (
   JOIN `YOUR_PROJECT.hypo_tutorial.src_universe` AS u USING (hadm_id)
 ),
 p AS (SELECT inputevents_insulin_regex FROM `YOUR_PROJECT.hypo_tutorial.agent_patterns`)
-SELECT ie.hadm_id, ie.stay_id, ie.itemid, ie.starttime, ie.endtime,
+SELECT ie.hadm_id, ie.stay_id, ie.itemid, ie.starttime, ie.endtime, ie.storetime,
        ie.amount, ie.amountuom, ie.rate, ie.rateuom, ie.ordercategorydescription, ie.statusdescription
 FROM `physionet-data.mimiciv_3_1_icu.inputevents` AS ie
 JOIN universe_stays                                AS u USING (stay_id)
@@ -262,7 +263,7 @@ WHERE ie.stay_id IS NOT NULL
 
 CREATE OR REPLACE TABLE `YOUR_PROJECT.hypo_tutorial.src_procedureevents`
 CLUSTER BY itemid, stay_id AS
-SELECT pe.hadm_id, pe.stay_id, pe.itemid, pe.starttime, pe.endtime, pe.statusdescription
+SELECT pe.hadm_id, pe.stay_id, pe.itemid, pe.starttime, pe.endtime, pe.storetime, pe.statusdescription
 FROM `physionet-data.mimiciv_3_1_icu.procedureevents` AS pe
 JOIN `physionet-data.mimiciv_3_1_icu.icustays`        AS s USING (stay_id)
 JOIN `YOUR_PROJECT.hypo_tutorial.src_universe`        AS u ON u.hadm_id = s.hadm_id

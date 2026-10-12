@@ -19,11 +19,14 @@
 --                    octreotide alike); eMAR infusion intervals (01 view 2b,
 --                    built from Started / Confirmed / Stopped events) follow
 --                    the same start < t_k rule
---    * glucose     : stored AND charted before t_k, repeat-rule-cancelled results dropped
+--    * glucose     : stored AND charted before t_k; a low cancelled by the repeat
+--                    rule (01) is dropped only when the contradicting result was
+--                    itself stored before t_k (what a clinician could know at t_k)
 --    * history     : diagnoses from EARLIER admissions only (discharged
 --                    before admittime); the current admission's ICD codes
 --                    are discharge codes and never used
---    * ICU vitals, GCS, weight : charttime in [t_k - 24 h, t_k)
+--    * ICU vitals, GCS, weight : charttime in [t_k - 24 h, t_k) AND storetime < t_k
+--                    (the both-times rule, as for labs and glucose, since release .20)
 --    * ventilation, dialysis : a procedureevents interval that started before t_k
 --    * cultures    : specimen charttime < t_k; a date-only specimen counts
 --                    only when its date is strictly before DATE(t_k)
@@ -33,7 +36,7 @@
 --  enters only when both its storetime and its charttime are before t_k.
 --
 --  Bookkeeping columns (never model inputs): subject_id, hadm_id, stay_id,
---  k, t_k, window_end, split, anchor_year_group, window_hours, race,
+--  k, t_k, window_end, split, anchor_year_group, years_after_anchor, window_hours, race,
 --  insurance, language, marital_status, the four labels,
 --  label_window_n_glucose (results in the LABEL window: reporting only,
 --  it is future information and must never be in X), and the drip record
@@ -48,7 +51,7 @@ CREATE OR REPLACE VIEW `YOUR_PROJECT.hypo_tutorial.features` AS
 WITH lm AS (
   SELECT
     c.subject_id, c.hadm_id, c.stay_id, c.k, c.t_k, c.window_end, c.icu_day,
-    c.split, c.anchor_year_group, c.window_hours,
+    c.split, c.anchor_year_group, c.years_after_anchor, c.window_hours,
     c.n_hypo_admin_24h, c.n_doses_24h, c.n_insulin_sc_24h, c.n_su_admin_24h, c.n_megl_admin_24h,
     c.n_sc_from_inputevents_24h, c.insulin_drip_24h, c.drip_running_at_tk,
     c.drip_inputevents_24h, c.drip_emar_24h, c.drip_running_inputevents_at_tk, c.drip_running_emar_at_tk,
@@ -201,7 +204,10 @@ glu_lm AS (
     ON g.hadm_id = l.hadm_id
    AND g.storetime < l.t_k
    AND g.charttime < l.t_k            -- both times before the landmark (see lab_lm)
-   AND NOT g.cancelled_by_repeat
+   -- a low contradicted by a repeat is left out only when the repeat itself was
+   -- visible before t_k; a repeat stored after t_k is information the landmark
+   -- did not have (the review of 12 October 2026: look-ahead through the flag)
+   AND NOT (g.cancelled_by_repeat AND g.repeat_storetime < l.t_k)
 ),
 glu_feat AS (
   SELECT stay_id, k,
@@ -561,7 +567,7 @@ vitals_raw AS (
   -- Plausibility bounds per item, the mimic-code vitals_first_day ones for
   -- the vitals (00 H2 found a heart rate of 10,000,000); weight 20 to 400 kg;
   -- GCS components in their scale ranges.
-  SELECT ce.stay_id, ce.charttime, ce.itemid, ce.valuenum
+  SELECT ce.stay_id, ce.charttime, COALESCE(ce.storetime, ce.charttime) AS storetime, ce.itemid, ce.valuenum
   FROM `YOUR_PROJECT.hypo_tutorial.src_chartevents` AS ce
   JOIN `YOUR_PROJECT.hypo_tutorial.stay_base`       AS b USING (stay_id)
   WHERE ce.itemid IN (220045, 220179, 220050, 220210, 220277, 223761, 223762,
@@ -584,7 +590,7 @@ vitals_raw AS (
 ),
 gcs_sum AS (
   -- one total per charting time when all three components are present
-  SELECT stay_id, charttime, SUM(valuenum) AS gcs_total
+  SELECT stay_id, charttime, MAX(storetime) AS storetime, SUM(valuenum) AS gcs_total
   FROM vitals_raw
   WHERE itemid IN (220739, 223900, 223901)
   GROUP BY stay_id, charttime
@@ -606,6 +612,7 @@ vitals_feat AS (
     ON v.stay_id = l.stay_id
    AND v.charttime >= DATETIME_SUB(l.t_k, INTERVAL 24 HOUR)
    AND v.charttime <  l.t_k
+   AND v.storetime <  l.t_k           -- both times before the landmark, as for labs
   GROUP BY l.stay_id, l.k
 ),
 gcs_feat AS (
@@ -617,6 +624,7 @@ gcs_feat AS (
     ON g.stay_id = l.stay_id
    AND g.charttime >= DATETIME_SUB(l.t_k, INTERVAL 24 HOUR)
    AND g.charttime <  l.t_k
+   AND g.storetime <  l.t_k
   GROUP BY l.stay_id, l.k
 ),
 weight_feat AS (
@@ -624,7 +632,7 @@ weight_feat AS (
   SELECT l.stay_id, l.k, v.valuenum AS weight_kg_icu, v.charttime AS weight_time
   FROM lm AS l
   JOIN vitals_raw AS v
-    ON v.stay_id = l.stay_id AND v.itemid IN (226512, 224639) AND v.charttime < l.t_k
+    ON v.stay_id = l.stay_id AND v.itemid IN (226512, 224639) AND v.charttime < l.t_k AND v.storetime < l.t_k
   QUALIFY ROW_NUMBER() OVER (PARTITION BY l.stay_id, l.k ORDER BY v.charttime DESC) = 1
 ),
 
@@ -657,7 +665,7 @@ omr_feat AS (
 -- ---------------------------------------------------------------------
 SELECT
   -- bookkeeping (never inputs)
-  l.subject_id, l.hadm_id, l.stay_id, l.k, l.t_k, l.window_end, l.split, l.anchor_year_group, l.window_hours,
+  l.subject_id, l.hadm_id, l.stay_id, l.k, l.t_k, l.window_end, l.split, l.anchor_year_group, l.years_after_anchor, l.window_hours,
   l.race, l.insurance, l.language, l.marital_status,
   l.y_lt54_24h, l.y_lt40_24h, l.y_cms816_24h, l.y_gt300_24h,
   l.n_glucose_in_window                                  AS label_window_n_glucose,   -- future information: reporting only
@@ -824,7 +832,6 @@ WITH lm AS (
 glu AS (
   SELECT 'glucose stream' AS source, hadm_id, charttime, storetime
   FROM `YOUR_PROJECT.hypo_tutorial.glucose_events`
-  WHERE NOT cancelled_by_repeat
 ),
 lab AS (
   SELECT 'lab panel' AS source, le.hadm_id, le.charttime, COALESCE(le.storetime, le.charttime) AS storetime

@@ -103,6 +103,15 @@ The 02 profile: rows with a drip running 11,702 (below 54 2.67%, 0.8% without a 
 
 What a peer should take from the six runs, in order: the leakage assertion caught a timestamp convention (nominal time after entry time) that no inspection of the SQL would have; two check tables refuted the reading of an event text and the assumption that one table records the drips; one table found three fifths of the newest era's flowsheet missing and moved the test era; one table set a cap from measured gaps instead of a guess; one table split a group by its record and settled which record to trust; and a bug of mine that dropped 10,000 rows was caught by the row count, then nailed down with a planted case. Every rule in 01 now has a table that would show it breaking.
 
+## The review of 12 October 2026
+
+An independent review of release .19 found two faults in the cohort rules this file built up, and two
+claims stated too strongly: the glucose repeat-test flag cancelled normal and high values too (it had no
+"low" condition) and leaked a later result into the features; the flowsheet-first flag was a stay-level
+fact; the split by anchor year group is patient-disjoint but only approximately temporal; the test groups'
+event rates were looked at while the rules above were set. The verdicts and the corrections (release .20,
+with 01 tables 18 to 20) are in `docs/model_findings.md`, "The review of 12 October 2026".
+
 ## What changed in the files, in one list
 
 (`tests/make_synthetic.py` and `tests/run_pipeline.py` below are the author's development harness, an invented
