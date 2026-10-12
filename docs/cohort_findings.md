@@ -112,6 +112,20 @@ fact; the split by anchor year group is patient-disjoint but only approximately 
 event rates were looked at while the rules above were set. The verdicts and the corrections (release .20,
 with 01 tables 18 to 20) are in `docs/model_findings.md`, "The review of 12 October 2026".
 
+## The release .20 run (12 October 2026): the cohort after the corrections
+
+128,135 landmark rows (four more than the sixth run: eMAR intervals now counting at landmarks before a stay's
+first flowsheet segment), 37,170 stays, 29,384 patients; train 88,554 rows / 1,223 lows / 8,512 highs, test
+21,744 / 218 / 2,116, shift test 17,837 / 187 / 1,624. The 49 added highs are values the old repeat flag had
+removed; the one lost low is a low contradicted by a repeat within 300 seconds that was not the next result.
+Leakage assertion 0 of 128,135; Table 1b 11.35% of ICU glucose results stored after their charttime, 949
+straddling rows. The three new tables: table 18 (the old flag had removed 36,816 results at or above 54; the
+corrected rule cancels 159 lows, 91 of them with the repeat stored later than the low), table 19 (52% of
+training rows are anchor-year admissions, 18% certainly fall in 2017 or later; 77.7% of primary test rows and
+92.5% of shift test rows are anchor-year admissions), table 20 (vitals entered a median 22 minutes after
+their charttime, p90 96; insulin drip segments stored a median 1 minute after their start and 67 minutes
+before their end). The full reading is in `docs/model_findings.md`, "The release .20 run".
+
 ## What changed in the files, in one list
 
 (`tests/make_synthetic.py` and `tests/run_pipeline.py` below are the author's development harness, an invented

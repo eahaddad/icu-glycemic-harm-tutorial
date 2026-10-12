@@ -1,0 +1,6 @@
+band,results,cancelled_now,flagged_by_old_rule,cancelled_with_repeat_visible_later
+1: < 40,1922,71,67,38
+2: 40 - 53,5520,88,87,53
+3: 54 - 79,63087,0,837,0
+4: 80 - 300,1759408,0,34311,0
+5: > 300,54863,0,1668,0
