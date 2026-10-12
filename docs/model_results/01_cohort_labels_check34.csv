@@ -1,8 +1,0 @@
-kind,rows_,pct_stored_after,pct_stored_more_than_1h_after,lag_p50_min,lag_p90_min,lag_p99_min
-chartevents: GCS,4532660,80.09,32.49,29,153,406
-chartevents: glucose,1814462,86.52,25.11,26,88,239
-chartevents: vitals,25579647,96.28,21.01,22,96,255
-chartevents: weight,305718,81.27,27.84,21,186,4151
-"emar: insulin event, store - chart",635427,50.36,12.04,1,74,319
-"inputevents: insulin drip segment, store - end",157446,10.51,3.2,-67,2,163
-"inputevents: insulin drip segment, store - start",157446,53.46,13.93,1,83,616

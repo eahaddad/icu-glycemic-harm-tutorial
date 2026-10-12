@@ -1,5 +1,0 @@
-rate_source,rows_,drip_segments,stays_with_a_drip,rate_p50_units_h,rate_p90,rate_p99,segment_hours_p50,segment_hours_p90,segment_hours_max,rows_rate_implausible,bolus_rows,bolus_rows_without_usable_units
-none,317013,0,0,,,,,,,0,317013,9757
-charted,155361,155209,12682,4.0,10.0,24.603050231933594,1.35,4.216666666666667,62.05,152,0,0
-derived from amount / hours,2238,2237,421,1.0367170348763466,3.1366690993309017,5.15950083732605,23.266666666666666,24.0,34.05,1,0,0
-bolus from drip,175,0,0,,,,,,,0,175,0
