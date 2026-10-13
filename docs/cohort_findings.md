@@ -126,7 +126,7 @@ training rows are anchor-year admissions, 18% certainly fall in 2017 or later; 7
 their charttime, p90 96; insulin drip segments stored a median 1 minute after their start and 67 minutes
 before their end). The full reading is in `docs/model_findings.md`, "The release .20 run".
 
-## The release .22 run (12 October 2026): the cohort under the unfiltered label and the availability rules
+## The release .22 run (12 October 2026): the cohort under the unfiltered label and the availability rules (superseded by the .23 run below)
 
 127,269 landmark rows (866 fewer than .20: the at-risk rule reads only exposure records entered before the
 landmark and rebuilds the eMAR state per landmark), 37,057 stays, 29,316 patients; train 87,761 rows / 1,234
@@ -144,8 +144,26 @@ doses, 1.4% of eMAR infusion events, 4.1% of vasopressor and 2.7% of antibiotic 
 intervals, 57.9% of the feed and dextrose segments running at t_k, 99.5% of the ventilation intervals (the
 procedureevents row is written when the procedure ends), and 1,940 rate changes written after the landmark.
 Table 11: dialysis at t_k 4.36% against 8.06% in .20, the one-hour tail after the last visible CRRT charting
-being conservative under a 22-minute entry lag (the next release lengthens it to the island gap). Tables 7,
+being conservative under a 22-minute entry lag (a later release could lengthen it to the island gap). Tables 7,
 12, 13, 15 and 17 read as before. The full reading is in `docs/model_findings.md`, "The release .22 run".
+
+## The release .23 run (13 October 2026): the cohort after the two-source dose rule and the eMAR tiebreak
+
+127,277 landmark rows (eight more than .22), 37,058 stays, 29,317 patients; train 87,762 rows / 1,234 documented
+lows (1,216 after the repeat-result exclusion) / 8,466 highs, test 21,702 / 226 (218) / 2,115, shift test 17,813 /
+190 (186) / 1,622: not one event count moved. The eight rows are the landmarks the corrected dose rule admits, a
+flowsheet bolus whose eMAR twin was entered after the landmark and which was the row's only visible exposure:
+table 21 counts nine more flowsheet boluses in use in a look-back on eight more rows, and table 7 places all eight
+among the rows with no drip record (five in the test split, two in the shift split, one in training). The shift
+group's `rows_with_drip_24h` is 3,257, the value one of the two .22 runs had given, now that the eMAR interval
+views break the same-minute tie by session. Rows with an infusion running at t_k 10,837, as in .22. Leakage
+assertion 0 of 127,277; Table 1b 11.35%, 941 straddling rows; tables 18 and 19 unchanged (52.0% of training rows
+anchor-year admissions, 17.7% certainly in 2017 or later; 77.7% of the primary test rows and 92.6% of the shift
+rows anchor-year admissions); table 20's medians the same to the minute, its p90 and p99 columns a few minutes
+apart as `APPROX_QUANTILES` makes them; table 21 the same shares (25.3% of running insulin segments, 57.9% of
+running feed segments, 99.5% of ventilation intervals withheld; eMAR doses withheld 1,035 on 939 rows, 0.53%);
+tables 7, 12, 13, 15 and 17 as before. The full reading, with the models, is in `docs/model_findings.md`, "The
+release .23 run".
 
 ## What changed in the files, in one list
 
@@ -212,12 +230,13 @@ After the second review (release .22, 12 October 2026; `docs/model_findings.md` 
 - `02_features.sql`: every treatment join gated by entry time; the drip features from `drips_at_landmark`, the dialysis features from `rrt_at_landmark`, the antibiotic first start per landmark; no feature-side glucose exclusion; deterministic tiebreakers on every last-value window; the fifth label carried.
 - `src/hypo_tutorial/columns.py`: `y_lt54_excl_24h` among the labels. `pipeline/run_bigquery.py`: the check-table naming. `tests/`: `make_synthetic.py`, `run_pipeline.py`, `prefix_invariance.py` in the repository.
 
-What the .22 run then showed is above ("The release .22 run"); what stays open for the next release: the ventilation
-feature from the hourly ventilator settings in chartevents (a new extract), the dialysis tail at the island gap,
-the Drive results folder emptied of check tables before a run copies its own in (the first .22 zip carried the
-.20 run's `check15` to `check34` next to `table01` to `table21`), the runner's timing printout kept in the
-results folder, and the one landmark row of the shift group that two runs of the SQL place differently
-(`rows_with_drip_24h` 3,256 in the evidence run, 3,257 in the first; `docs/model_findings.md` has the likely tie).
+What the .22 run then showed is above ("The release .22 run"). Two of the things it left open are in .23 (the
+Drive results folder emptied of check tables before a run copies its own in, after the first .22 zip carried the
+.20 run's `check15` to `check34` next to `table01` to `table21`; and the one landmark row of the shift group that
+two runs of the SQL placed differently, `rows_with_drip_24h` 3,256 in the evidence run and 3,257 in the first,
+traced to a same-minute tie in the eMAR interval views). Still open for a later release: the ventilation feature
+from the hourly ventilator settings in chartevents (a new extract), the dialysis tail at the island gap, and the
+runner's timing printout kept in the results folder.
 
 After the third review (release .23, 13 October 2026; `docs/model_findings.md`, "The third review"):
 
@@ -230,3 +249,6 @@ After the third review (release .23, 13 October 2026; `docs/model_findings.md`, 
 - `tests/`: the two planted cases (the two-source dose with a late eMAR entry; the same-minute Started pair), the
   fixture's microsecond datetimes, the removed DATETIME rewrite in `run_pipeline.py`, failures replayed by
   `prefix_invariance.py`.
+
+What the .23 run then showed is above ("The release .23 run"): eight landmark rows and no events, the shift group's
+drip row at 3,257, every other table as before.

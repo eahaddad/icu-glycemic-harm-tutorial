@@ -1,12 +1,12 @@
 kind,records_in_use_by_clinical_time,landmark_rows_with_the_record,records_entered_at_or_after_tk,pct_records_entered_after_tk,landmark_rows_losing_a_record
 01 insulin drip segment running at t_k,10417,10271,2635,25.3,2608
 02 insulin drip segment in the look-back,162439,24303,3220,1.98,2674
-03 insulin bolus (inputevents) in the look-back,276045,97982,8206,2.97,7052
-04 eMAR hypoglycemic-agent dose in the look-back,194926,62141,1026,0.53,931
+03 insulin bolus (inputevents) in the look-back,276054,97990,8206,2.97,7052
+04 eMAR hypoglycemic-agent dose in the look-back,194935,62149,1035,0.53,939
 05 eMAR insulin infusion event in the look-back,60566,13311,821,1.36,761
-06 feed or dextrose rate segment running at t_k,124978,76278,72302,57.85,51988
-07 vasopressor segment in the look-back,433321,39592,17901,4.13,11914
+06 feed or dextrose rate segment running at t_k,124983,76282,72305,57.85,51991
+07 vasopressor segment in the look-back,433328,39594,17901,4.13,11914
 08 ventilation interval at t_k,48665,48125,48404,99.46,47926
 09 dialysis interval at t_k,10264,10258,811,7.9,811
-10 antibiotic segment in the look-back,259586,74683,7060,2.72,6120
+10 antibiotic segment in the look-back,259591,74686,7060,2.72,6120
 "11 insulin drip rate change in the look-back, written after t_k",120265,21123,1940,1.61,1731

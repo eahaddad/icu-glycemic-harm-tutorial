@@ -1,12 +1,15 @@
 # The models: the runs, the findings, and the numbers the deck quotes
 
-The numbers to quote are those of the release .22 run (12 October 2026, the section "The release .22 run"
-below and `docs/model_results/`), the rerun after the second review: the unfiltered primary endpoint and the
-availability rules on every record. The earlier sections are the record of how they were reached: the first
-run (release .8) and its verdicts, the second (.12) that tested the Platt diagnosis, the third (.14) that
-exposed the row-order dependence, the .16 evidence run, the first review and its corrections, the .20 run,
-the second review. The verdicts did not change between runs; the third decimal did, for the reasons each
-section gives.
+The numbers to quote are those of the release .23 run (13 October 2026, the section "The release .23 run"
+at the end of this document, and `docs/model_results/`), the run after the third review: the two-source dose
+rule and the eMAR tiebreak corrected, and a sixth sensitivity that measures what the drip inputs contribute.
+The earlier sections are the record of how those numbers were reached: the first run (release .8) and its
+verdicts, the second (.12) that tested the Platt diagnosis, the third (.14) that exposed the row-order
+dependence, the .16 evidence run, the first review and its corrections, the .20 run, the second review, the
+two .22 runs and what they said about reproducibility, the third review. The verdicts did not change between
+runs; the third decimal did, for the reasons each section gives. I keep the earlier sections because a reader
+who reruns the notebook and gets a different third decimal should be able to see how much the third decimal
+has moved before, and why.
 
 ## The first real run of the models (notebook 02, release .8, 11 October 2026)
 
@@ -736,7 +739,7 @@ many drip, dose, feed, ventilation and dialysis records the rule withholds at th
 procedureevents lag in table 20, the leakage assertion at 0, and the headline against .20. The next section
 is what it showed.
 
-## The release .22 run (12 October 2026, the evidence run of 23:32): the numbers the deck quotes
+## The release .22 run (12 October 2026, the evidence run of 23:32), superseded by the .23 run below
 
 Release .22 was run twice on 12 October 2026, on the same extract (the .20 extract step's `src_*` tables; no
 `EXTRACT_FORCE`). The first run (20:56 to 21:30 Colab time) used the code from a zip of the repository on
@@ -886,7 +889,7 @@ hypoglycemia diagnosis +0.16, drip rate at t_k +0.16, hours since the drip stopp
 the feeds, which sat among arm A's largest coefficients in .20 (+0.23 and -0.26), are not in the top 20 of
 .22: the availability rule withheld their records.
 
-### The first run of the same release, as the reproduction: what reproduces
+### Reproducibility: the first run of the same release against the evidence run
 
 The first .22 run (20:56 to 21:30, from the Drive zip of the code, on another Colab machine) against the
 evidence run: table 1 identical except `rows_with_drip_24h` of the shift group, 3,257 against 3,256; tables 7,
@@ -908,10 +911,11 @@ rather than the data: in the eMAR interval views (`emar_insulin_infusions`, `ema
 next session's start is looked up with `LEAD(start_time) OVER (PARTITION BY ... ORDER BY start_time)`, and
 two sessions that open in the same minute (a Confirmed that reopens after a Stopped and a Started charted at
 the same minute) tie on `start_time`, which BigQuery orders arbitrarily; whichever session the LEAD sees
-first ends at the other's start and is dropped, and the survivor's end can differ. The fix for the next
-release is `ORDER BY start_time, session_id` in both views (the synthetic database has no such tie, so the
-test harness did not catch it); until a rerun confirms it, the finding is stated as measured: one row, the
-third decimal, and the > 300 tree count.
+first ends at the other's start and is dropped, and the survivor's end can differ. The fix, in release
+.23, is `ORDER BY start_time, session_id` in both views, and the fixture now plants the tie (the synthetic
+database had no such tie, so the harness did not catch it). The .23 run gives 3,257 for the row, the value of
+the first .22 run; that is consistent with the diagnosis but is one run, and the finding stays as measured:
+one row, the third decimal, and the > 300 tree count.
 
 ## The third review (13 October 2026) and release .23: the two-source dose, the harness, the tie
 
@@ -930,7 +934,8 @@ the corrections of the second review and the agreement between the deck and the 
    inputs (`n_hypo_admin_24h`, `n_doses_24h`, `n_insulin_sc_24h`, `n_sc_from_inputevents_24h`,
    `insulin_bolus_units_24h`) and passes on .23. The size on the real data is bounded by table 21's eMAR doses
    entered after their landmark (1,026 records, 931 rows, 0.53%) and only those with a flowsheet twin inside the
-   match window count, so a few hundred rows at most; the .23 rerun measures it.
+   match window count, so a few hundred rows at most; the .23 run measured it at eight landmark rows and no events
+   (the next section).
 
 2. **The harness did not run in the reviewer's environment. Confirmed, corrected.** Two causes, both mine.
    `requirements.txt` allows pandas 2.x, whose nanosecond datetimes become `TIMESTAMP_NS` columns in DuckDB
@@ -964,14 +969,147 @@ the corrections of the second review and the agreement between the deck and the 
 Also in .23: the notebook clears the check tables from the Drive results folder before copying a run's in, so a
 results zip can no longer carry an earlier release's tables.
 
-What the .23 rerun has to show: table 1 against the .22 evidence run (the dose rule can only add rows and doses;
-the tie can move single rows), the headline, the sixth sensitivity (arm B without the drip inputs, on all rows and
-on the drip rows), and whether a second .23 run reproduces table 1 to the row.
+What the .23 run had to show, and the next section reports: table 1 against the .22 evidence run (the dose rule
+can only add rows and doses; the tie can move single rows), the headline, and the sixth sensitivity (arm B without
+the drip inputs, on all rows and on the drip rows). Whether a second .23 run reproduces table 1 to the row is still
+to be measured.
+
+## The release .23 run (13 October 2026, 01:23 to 01:55): the numbers the deck quotes
+
+I ran release .23 once, on 13 October 2026, the way the runbook asks a peer to run it: the notebook opened from
+the repository, the code cloned from it at its release commit into an empty Drive folder, `RUN_DATA_STAGE = auto`
+on the extract the .20 extract step had written, `EXTRACT_FORCE` off. `docs/model_results/` holds its 56 files
+plus the extract's size table, and every number in the deck and in these documents is read from it. From the
+file timestamps the zip carries: the check tables were copied into `results/` at 01:23:18 and the cohort stage
+wrote its tables within the same minute; the modeling stage ran from the preparation table to the sensitivities
+table in 31.7 minutes (cross-validation 8.3 minutes for < 54 and 13.9 for > 300, evaluation 2.1, figures and
+importance 0.7, the six sensitivities 6.7, of which the sixth, a refit of the preparation and of arm B, is most);
+the last file is stamped 01:55:12. A slower Colab machine than the .22 evidence run's (19.1 minutes for five
+sensitivities); the times are the machine's, not the code's.
+
+### The cohort after the two corrections (table 1, against the .22 evidence run)
+
+| split | rows | stays | patients | < 54 | < 54 excl. | < 40 | CMS816 | > 300 | drip in 24 h | running at t_k |
+|---|---|---|---|---|---|---|---|---|---|---|
+| train (anchored 2008 - 2016) | 87,762 (+1) | 26,434 | 20,221 | 1,234 | 1,216 | 331 | 312 | 8,466 | 18,790 | 7,514 |
+| test (anchored 2017 - 2019) | 21,702 (+5) | 6,210 | 5,214 | 226 | 218 | 61 | 50 | 2,115 | 4,831 | 1,888 |
+| shift test (anchored 2020 - 2022) | 17,813 (+2) | 4,414 (+1) | 3,882 (+1) | 190 | 186 | 51 | 45 | 1,622 | 3,257 (+1) | 1,435 |
+
+127,277 rows (+8), 37,058 stays (+1), 29,317 patients (+1); not one event count moved in any split. The eight
+rows are what the two corrections admit: a landmark whose only visible exposure was a flowsheet bolus with an
+eMAR twin entered later now enters the cohort, and the shift group's drip row sits at 3,257, which one of the two
+.22 runs had given. Table 21 shows the dose rule's reach: flowsheet boluses in use in a look-back 276,054 (+9
+records on +8 rows) and eMAR doses 194,935 (+9), with 1,035 eMAR doses (+9) entered at or after their landmark
+on 939 rows (+8); the share withheld is unchanged at 0.53%. The eight rows are all rows with no drip record
+(table 7: the "none" rows of each split grew by 5, 2 and 1), and the one extra shift-group stay is one of them.
+Every other cohort table is unchanged or moved by those rows alone: table 1b still 11.35% of ICU glucose results
+with a charttime after their storetime, 941 landmark rows straddling, the lab panel 245 of 7,305,561; table 18
+unchanged (71 results below 40 and 88 in 40 to 53 excluded by the repeat rule); table 19 unchanged to the tenth
+(52.0% of training rows anchor-year admissions, 17.7% certainly in 2017 or later; 77.7% of the primary test rows
+and 92.6% of the shift rows anchor-year admissions); censoring 23.58% of windows under 24 h, 8.53% under 6 h;
+monitoring 5.7% of the rows without an infusion with no glucose result in the window (6,671 of 116,440) against
+0.9% with one (93 of 10,837). Leakage assertion 0 of 127,277. Table 20 (entry lags) is the same to the minute in
+its medians; its p90 and p99 columns are `APPROX_QUANTILES` and move by a few minutes between runs, as before.
+
+### Headline (arm, outcome, group; AUROC [95% bootstrap], AUPRC, O/E, slope)
+
+| group | arm | AUROC | AUPRC | Brier | O/E | slope | intercept |
+|---|---|---|---|---|---|---|---|
+| < 54, anchored 2017 - 2019 | A | 0.836 [0.812, 0.861] | 0.065 [0.050, 0.083] | 0.010 | 0.925 [0.795, 1.052] | 0.963 | -0.222 |
+| | B | 0.864 [0.841, 0.884] | 0.078 [0.060, 0.105] | 0.010 | 0.972 [0.837, 1.112] | 1.048 [0.964, 1.129] | 0.143 |
+| | B+Platt | 0.864 | 0.078 | 0.010 | 0.847 [0.729, 0.969] | 1.043 | -0.027 |
+| < 54, anchored 2020 - 2022 | A | 0.826 [0.795, 0.855] | 0.067 [0.050, 0.093] | 0.010 | 1.121 [0.972, 1.274] | 0.980 | 0.043 |
+| | B | 0.850 [0.826, 0.875] | 0.077 [0.056, 0.110] | 0.010 | 1.140 [0.997, 1.287] | 0.989 | 0.098 |
+| | B+Platt | 0.850 | 0.077 | 0.010 | 0.993 [0.868, 1.121] | 0.985 | -0.063 |
+| > 300, anchored 2017 - 2019 | A | 0.881 [0.871, 0.890] | 0.500 | 0.064 | 0.991 | 1.069 | 0.098 |
+| | B | 0.893 [0.884, 0.902] | 0.532 | 0.062 | 1.020 | 1.093 | 0.169 |
+| > 300, anchored 2020 - 2022 | A | 0.869 [0.858, 0.879] | 0.467 | 0.062 | 0.962 | 1.051 | 0.027 |
+| | B | 0.878 [0.869, 0.888] | 0.502 | 0.060 | 0.951 | 1.049 | -0.001 |
+
+Against the .22 evidence run: arm A's < 54 AUROCs are identical to three decimals (0.836 and 0.826; the > 300
+ones 0.881 and 0.869 against 0.880 and 0.868), and its C is 0.01 for both outcomes this time (0.01 and 0.03 in
+.22; the cross-validated log losses at 0.01 and 0.03 for > 300 differ in the fifth decimal, 0.22512 against
+0.22515, so the choice is a coin the folds toss). Arm B's primary-group AUROC is 0.864 in both runs and its
+shift-group AUROC 0.850 against 0.851; for > 300, 0.893 and 0.878 against 0.892 and 0.880. Arm B stopped at 194
+trees for < 54 (folds 179, 164, 255, 186, 186; 153 in .22) and 323 for > 300 (422, 350, 283, 260, 300; 411 in
+.22): eight rows in a different place give different folds, and the fold assignment moves the stopping rounds
+by a third while the AUROC stays in the third decimal, which is the reproducibility lesson again. The AUPRC for
+< 54 on the primary group is 0.078 against 0.085 (the interval 0.060 to 0.105 against 0.062 to 0.120), and on the
+shift group 0.077 against 0.070: with 226 and 190 events the AUPRC is the least stable number in the table, and I
+would not read 0.007 of it. Arm B's primary-group O/E is 0.97 against 0.95; the shift group's under-prediction is
+14% (B 1.140, A 1.121), against 11% in .22, with arm B's interval, 0.997 to 1.287, just including 1.
+
+Calibration: raw arm B on the primary group, top decile 5.88% predicted against 5.90% observed, ninth decile
+1.65% against 1.94%; O/E 0.97, slope 1.05. Out-of-fold: arm B's fold models under-predict the training rows by
+15% (O/E 1.147, mean prediction 1.23% against 1.41%), Platt intercept 0.164, slope 1.005, and the step again
+over-corrects the primary group (O/E 0.847); arm A's out-of-fold O/E is 1.000 and its Platt step is the identity
+to the second decimal (intercept -0.012, slope 0.997). The verdict stands a fourth time: raw arm B is the primary
+model, the recalibration a negative result. On the shift group the drift sits in the ninth and tenth deciles
+(1.38% predicted against 2.25% observed, 5.14% against 5.67%).
+
+Operating points, arm B, < 54, primary group: the riskiest 5% of rows catch 42% of events (95 of 226) at a PPV
+of 0.087, one event per 11 alerts; 10% catch 57% (128) at 0.059, one per 17; 20% catch 75% (170) at 0.039, one
+per 26. Shift group 36 / 53 / 74%. For > 300: 34 / 52 / 75% at PPV 0.66 / 0.51 / 0.37. Decision curve, per 100
+ICU days against acting on everyone: 0.76 against 0.54 at 0.5% (42% flagged), 0.60 against 0.04 at 1% (23%),
+0.41 against -0.98 at 2% (12%), 0.18 against -4.17 at 5% (3.8%), 0.04 at 10% (1.3%); above acting on everyone
+and on no one at every threshold from 0.5 to 10%.
+
+Subgroups (arm B, < 54): rows with an infusion running at the landmark, AUROC 0.705 (37 events, 2.0% event
+rate) on the primary group and 0.730 (38 events, 2.6%) on the shift group; without one, 0.876 and 0.855; arm A
+0.644 / 0.718 and 0.856 / 0.832. The primary-group drip cell has now read 0.687, 0.727 and 0.705 across the
+.20, .22 and .23 runs with the same 37 events: that is the width of a 37-event cell, and the verdict, weakest
+where the alert matters, is the same each time. Units on the primary group: CVICU 0.826 (62 events), MICU 0.832
+(60), MICU/SICU 0.859 (40), TSICU 0.915 (17), SICU 0.892 (11), CCU 0.838 (19). The shift group by record (rows,
+events, AUROC, O/E): no drip in the look-back 14,556 / 132 / 0.850 / 1.06; drip on the flowsheet 1,427 / 29 /
+0.781 / 1.37; drip known from the eMAR alone 1,830 / 29 / 0.848 / 1.39; infusion running at t_k 1,435 / 38 /
+0.730 / 1.53. The primary group by record: no drip 16,871 / 162 / 0.886 / 1.03; flowsheet 4,569 / 56 / 0.774 /
+0.80; eMAR only 262 rows, suppressed. ICU day on the primary group: day 2 0.846 (51 events), days 3 to 4 0.878
+(51), days 5 to 8 0.864 (52), day 9 and later 0.867 (72). Sex: 0.849 (127 events) for men, 0.883 (99) for
+women, a gap the subgroup table reports without an interval and that 99 events cannot support. Race groups on the primary group: WHITE, UNKNOWN, BLACK and HISPANIC/LATINO
+reported, ASIAN and OTHER suppressed; no supportable gap at these counts. 228 cells, 24 suppressed; the reported
+< 54 cells of arm B hold a median of 45 events (quartiles 23 and 74, the smallest 11).
+
+Sensitivities (arm B, < 54, primary / shift): main 0.864 / 0.850; training on 2011 to 2016 only 0.846 / 0.832;
+measured rows only 0.863 / 0.849; windows of 6 h or more 0.861 / 0.847 (224 and 188 events); anchor-year
+admissions only 0.867 (16,862 rows, 152 events) / 0.864 (16,487 rows, 163 events); arm B refitted on the
+repeat-excluded endpoint and scored against it 0.863 / 0.852 (218 and 186 events). The sixth, new in this
+release: the preparation and arm B refitted on the training rows with every drip input removed (the columns
+whose names start with `drip_`, `hrs_since_drip_stop` and `insulin_drip_24h`), 0.860 / 0.855 on every row, and
+0.700 (37 events) / 0.733 (38 events) on the rows with an infusion running at the landmark. With the drip
+inputs the same cells read 0.864 / 0.850 and 0.705 / 0.730. So the drip inputs add about 0.004 of AUROC
+overall and nothing measurable inside the drip rows: the model separates infusion rows from the rest through
+the glucose history, the number of glucose results in the look-back and the insulin doses as much as through the
+drip columns, and the infusion rows are the harder rows with or without their own inputs. The reading the third
+review asked me to measure, that the headline is carried by separating drip from non-drip rows, is therefore
+true of the cohort and not of the drip columns: the headline AUROC is a property of a cohort in which the
+easier, non-infusion rows are nine in ten, and removing the columns that name the infusion does not change it.
+Two things the sensitivity does not say: it does not say the drip features are useless on a model fitted to the
+drip rows alone (that model is future work), and it does not say the drip rows are unpredictable; 0.70 is above
+chance with 37 events, and the interval, 0.61 to 0.79, is wide.
+
+Importance: arm B's mean |SHAP| ranks the 24 h minimum glucose first (0.32), then the stay minimum (0.22),
+weight (0.16), bolus units (0.14), the stay maximum (0.12), glucose SD (0.12), basal units (0.09), HbA1c (0.08),
+creatinine (0.08), the last glucose (0.07), the drip rate at t_k (0.07), lactate (0.07). Arm A's largest
+standardised coefficients: 24 h minimum glucose -0.35, weight -0.28, prior diabetes +0.26, last glucose -0.24,
+basal units +0.24, bolus units +0.24, no drip rate recorded -0.20, lows earlier in the stay +0.19, the stay
+minimum -0.19, eMAR administrations in 24 h -0.18, doses from the flowsheet -0.18, infusion running +0.17,
+lactate +0.17, prior hypoglycemia diagnosis +0.16, drip rate at t_k +0.16, hours since the drip stopped -0.16.
+The same set and order as .22 to within 0.02 of each coefficient.
+
+### What a second .23 run should show
+
+MIMIC-IV v3.1 does not change, so table 1 should match this run to the row; the two .22 runs differed by one
+row through the tie that .23 breaks, and a .23 pair that agrees to the row is the measurement that closes that
+finding. The AUROCs should match to two decimals; the third can move with the fold assignment and the library
+versions, as the two .22 runs and the .22-to-.23 comparison both show, and the > 300 tree count is the number
+most sensitive to it. If you run it and table 1 differs, the SQL or the extract differs from mine, and that is
+the thing to compare first.
 
 ## What is still open
 
 - A clinician's reading of the deck's wording.
-- The drip subgroup: 0.73 is a limitation to state, not to fix before the deadline. The features that
+- The drip subgroup: 0.71 is a limitation to state, not to fix before the deadline, and the sixth sensitivity
+  says the drip columns are not the lever. The features that
   would address it (glucose trajectory over the last 6 h, rate changes and time since the last change,
   feed interruptions timed against the infusion) are future work, and a model fitted on the drip rows
   alone is the natural comparison.
@@ -979,14 +1117,15 @@ on the drip rows), and whether a second .23 run reproduces table 1 to the row.
   model inside the student's own session, a classifier on the vectors) was drafted and removed from
   the release: it needs a GPU session, a row-level text file that must never leave the student's
   Drive, and a third evaluation; it is the comparison a follow-up would add.
-- The 2020 to 2022 under-prediction by 12%: a recalibration on the shifted era itself would fix the
+- The 2020 to 2022 under-prediction by 14% (observed over expected 1.14): a recalibration on the shifted era itself would fix the
   level but is not available before deployment; the honest deck statement is that a model trained on
   flowsheet-complete years needs its intercept re-checked after a charting change.
-- For the next release, in this order: ventilation from the hourly ventilator settings in chartevents (a new
+- A second run of release .23, to measure whether table 1 now reproduces to the row.
+- For a later release, in this order: ventilation from the hourly ventilator settings in chartevents (a new
   extract, 2.78 GiB more of the sandbox's storage on a project that already holds one); the dialysis tail
-  lengthened from one hour to the island gap; the notebook emptying the check tables from the Drive folder
-  before copying a run's in, so a results zip never carries an earlier release's files; the runner keeping
-  its timing printout in the results folder, so the data stage's times are in the zip like the other stages'.
+  lengthened from one hour to the island gap; the runner keeping its timing printout in the results folder,
+  so the data stage's times are in the zip like the other stages'; the feature preparation built with one
+  concat instead of a column at a time (pandas warns that the frame is fragmented; the values are the same).
 - Mathioudakis et al. (JAMA Network Open 2021): 35,147 hospitalized patients, a glucose at or below 70 mg/dL
   in the 24 hours after each measurement, stochastic gradient boosting the best of four model families,
   C-statistic 0.90 on internal and 0.86 to 0.88 on external validation. Fralick et al. (Intern Emerg Med
