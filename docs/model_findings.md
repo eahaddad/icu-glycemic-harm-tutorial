@@ -736,18 +736,22 @@ many drip, dose, feed, ventilation and dialysis records the rule withholds at th
 procedureevents lag in table 20, the leakage assertion at 0, and the headline against .20. The next section
 is what it showed.
 
-## The release .22 run (12 October 2026): the numbers the deck quotes
+## The release .22 run (12 October 2026, the evidence run of 23:32): the numbers the deck quotes
 
-The rerun on the .20 extract (`RUN_DATA_STAGE = always`, no `EXTRACT_FORCE`: the extract is unchanged
-between the releases): the pipeline, the pull, the cohort stage and the models in one Colab run. Same
-library versions as .20. From the file timestamps the zip carries: the check tables were copied into
-`results/` at 20:56:46, the cohort stage had written its tables by 20:56:50, the modeling stage ran from
-the preparation table (20:57:04) to the sensitivities table (21:30:34), 33.5 minutes (cross-validation 9.6
-minutes for < 54 and 16.5 for > 300, evaluation 2.2, figures and importance 0.7, the five sensitivities
-4.5), and the zip is stamped 21:30. The zip also carried the .20 run's `check15` to `check34` next to the
-new `table01` to `table21`: the notebook packs the Drive folder as it stands and the new names did not
-overwrite the old ones. They are excluded from `docs/model_results/`; the next release empties the check
-tables from the Drive folder before copying the new ones in.
+Release .22 was run twice on 12 October 2026, on the same extract (the .20 extract step's `src_*` tables; no
+`EXTRACT_FORCE`). The first run (20:56 to 21:30 Colab time) used the code from a zip of the repository on
+Drive and a Drive folder that still held the .20 run's files. The second run (23:12 to 23:32), from an
+empty Drive folder, cloned the code from the published repository at its release commit, which is the path
+a peer takes, and that run is the evidence run: `docs/model_results/` holds its 56 files plus the extract's
+size table from the .20 extract step, and every number in the deck and the documents is read from it. The
+first run is kept as the reproduction (the section after the headline compares the two). From the file
+timestamps the evidence zip carries: the check tables were copied into `results/` at 23:12:56, the cohort
+stage had written its tables within the same minute, the modeling stage ran from the preparation table to
+the sensitivities table in 19.1 minutes (cross-validation 5.4 minutes for < 54 and 9.6 for > 300,
+evaluation 1.2, figures and importance 0.5, the five sensitivities 2.4; a faster Colab machine than the
+first run's 33.5 minutes), and the zip is stamped 23:32. The first run's zip had also carried the .20 run's
+`check15` to `check34` next to `table01` to `table21`, because the notebook packs the Drive folder as it
+stands; the next release empties the check tables from the Drive folder before copying a run's in.
 
 ### The cohort under the new label and the availability rules (table 1, against .20)
 
@@ -755,7 +759,7 @@ tables from the Drive folder before copying the new ones in.
 |---|---|---|---|---|---|---|---|---|---|---|
 | train (anchored 2008 - 2016) | 87,761 (-793) | 26,434 | 20,221 | 1,234 (+11) | 1,216 | 331 | 312 | 8,466 (-46) | 18,790 (-229) | 7,514 (-782) |
 | test (anchored 2017 - 2019) | 21,697 (-47) | 6,210 | 5,214 | 226 (+8) | 218 | 61 | 50 | 2,115 (-1) | 4,831 (-22) | 1,888 (-80) |
-| shift test (anchored 2020 - 2022) | 17,811 (-26) | 4,413 | 3,881 | 190 (+3) | 186 | 51 | 45 | 1,622 (-2) | 3,257 (-15) | 1,435 (-19) |
+| shift test (anchored 2020 - 2022) | 17,811 (-26) | 4,413 | 3,881 | 190 (+3) | 186 | 51 | 45 | 1,622 (-2) | 3,256 (-16) | 1,435 (-19) |
 
 127,269 rows (-866), 37,057 stays, 29,316 patients. The rows went because the at-risk rule now reads only
 the exposure records entered before the landmark and rebuilds the eMAR state per landmark; the rows with an
@@ -777,14 +781,14 @@ admissions, 17.7% certainly fall in 2017 or later; 77.7% of the primary test row
 
 Table 20, extended to every record kind. Insulin drip segments: stored a median 1 minute after their start
 (p90 83, p99 616; 13.9% more than an hour after) and 67 minutes before their end (10.5% after it). eMAR
-insulin events: 1 minute after their charttime (p90 74). Flowsheet boluses 0 (p90 125), antibiotic segments
+insulin events: 1 minute after their charttime (p90 74). Flowsheet boluses 0 (p90 126), antibiotic segments
 0 (p90 120). Feed and dextrose segments: a median 28 minutes after their start, p90 750 (41.0% more than an
 hour after); 31.9% entered after their end. Procedure intervals are entered at the end of the procedure: a
-ventilation interval a median 1,605 minutes after its start (p90 13,284; 98.8% more than an hour after) and
-3 minutes after its end (p90 196); a dialysis interval 396 minutes after its start (p90 6,062; 83.0%) and 16
-after its end. Microbiology rows: a median 4,257 minutes (3.0 days) after the collection time, which is why
+ventilation interval a median 1,605 minutes after its start (p90 13,300; 98.8% more than an hour after) and
+4 minutes after its end (p90 196); a dialysis interval 396 minutes after its start (p90 6,053; 83.0%) and 16
+after its end. Microbiology rows: a median 4,255 minutes (3.0 days) after the collection time, which is why
 cultures count at collection. Vitals 22 minutes after their charttime (p90 96), GCS 29, ICU glucose 26,
-weight 21 (p90 186, p99 4,086).
+weight 21 (p90 187, p99 4,296; the p90 and p99 columns are `APPROX_QUANTILES` and move a little between runs).
 
 Table 21, what the rule withholds at the landmarks (records in use by clinical time; share entered at or
 after t_k; landmark rows losing a record): insulin drip segment running at t_k 10,417 / 25.3% / 2,608; drip
@@ -814,73 +818,100 @@ to 26.5% of intervals. Table 7 on the shift group: eMAR-only running rows 14.44 
 
 | group | arm | AUROC | AUPRC | Brier | O/E | slope | intercept |
 |---|---|---|---|---|---|---|---|
-| < 54, anchored 2017 - 2019 | A | 0.836 [0.812, 0.861] | 0.065 | 0.010 | 0.925 [0.796, 1.053] | 0.963 | |
-| | B | 0.863 [0.842, 0.882] | 0.081 [0.061, 0.112] | 0.010 | 0.953 [0.821, 1.088] | 1.066 [0.982, 1.152] | 0.189 |
-| | B+Platt | 0.863 | 0.081 | 0.010 | 0.854 [0.736, 0.975] | 1.038 | |
-| < 54, anchored 2020 - 2022 | A | 0.826 [0.796, 0.854] | 0.067 | 0.010 | 1.121 [0.961, 1.296] | 0.980 | |
-| | B | 0.852 [0.827, 0.876] | 0.071 [0.053, 0.100] | 0.010 | 1.117 [0.965, 1.279] | 1.027 | |
-| | B+Platt | 0.852 | 0.071 | 0.010 | 1.005 [0.868, 1.151] | 0.999 | |
-| > 300, anchored 2017 - 2019 | A | 0.880 [0.870, 0.890] | 0.499 | | 0.989 | 1.059 | |
-| | B | 0.892 [0.883, 0.901] | 0.533 | | 1.025 | 1.077 | |
-| > 300, anchored 2020 - 2022 | A | 0.868 [0.858, 0.878] | 0.467 | | 0.958 | 1.042 | |
-| | B | 0.880 [0.871, 0.889] | 0.504 | | 0.957 | 1.041 | |
+| < 54, anchored 2017 - 2019 | A | 0.836 [0.812, 0.861] | 0.065 [0.050, 0.083] | 0.010 | 0.925 [0.796, 1.053] | 0.963 | -0.222 |
+| | B | 0.864 [0.843, 0.883] | 0.085 [0.062, 0.120] | 0.010 | 0.951 [0.820, 1.088] | 1.073 [0.993, 1.162] | 0.214 |
+| | B+Platt | 0.864 | 0.085 | 0.010 | 0.852 [0.735, 0.973] | 1.045 | -0.013 |
+| < 54, anchored 2020 - 2022 | A | 0.826 [0.796, 0.854] | 0.067 [0.048, 0.096] | 0.010 | 1.121 [0.961, 1.296] | 0.980 | 0.043 |
+| | B | 0.851 [0.826, 0.875] | 0.070 [0.052, 0.100] | 0.010 | 1.111 [0.960, 1.270] | 1.019 | 0.184 |
+| | B+Platt | 0.851 | 0.070 | 0.010 | 0.999 [0.863, 1.142] | 0.992 | -0.032 |
+| > 300, anchored 2017 - 2019 | A | 0.880 [0.870, 0.890] | 0.499 | 0.064 | 0.989 | 1.059 | 0.077 |
+| | B | 0.892 [0.883, 0.901] | 0.533 | 0.062 | 1.023 | 1.076 | 0.150 |
+| > 300, anchored 2020 - 2022 | A | 0.868 [0.858, 0.878] | 0.467 | 0.062 | 0.958 | 1.042 | 0.005 |
+| | B | 0.880 [0.870, 0.889] | 0.502 | 0.060 | 0.957 | 1.035 | -0.014 |
 
-Against .20: every AUROC within 0.003 (B < 54: 0.863 against 0.865, 0.852 against 0.855; > 300: 0.892 against
+Against .20: every AUROC within 0.003 (B < 54: 0.864 against 0.865, 0.851 against 0.855; > 300: 0.892 against
 0.895, 0.880 against 0.880; A 0.836 / 0.826 / 0.880 / 0.868 against 0.839 / 0.826 / 0.883 / 0.868), every
 interval overlapping almost entirely. The unfiltered label, the availability rules, the withheld ventilation
 and feed records and the 866 lost rows moved nothing in the discrimination, which says the ranking never
 leaned on the records the chart did not yet hold. Arm A chose C = 0.01 for < 54 this time (0.03 in .20; the
 cross-validated log loss at 0.01 and 0.03 differs in the fourth decimal, 0.06254 against 0.06255) and 0.03
-for > 300. Arm B stopped at 153 trees for < 54 (folds 158, 137, 124, 184, 162; 175 in .20) and 402 for > 300
-(712, 294, 409, 368, 229; 369 in .20). The shift group's under-prediction eased again, from 14% to 12% (B
-1.117, A 1.121), and arm B's interval now includes 1.
+for > 300. Arm B stopped at 153 trees for < 54 (folds 158, 137, 124, 184, 162; 175 in .20) and 411 for > 300
+(639, 373, 409, 309, 325; 369 in .20). The shift group's under-prediction eased again, from 14% to 11% (B
+1.111, A 1.121), and arm B's interval now includes 1.
 
-Calibration: raw arm B on the primary group, top decile 5.80% predicted against 5.99% observed; O/E 0.95,
+Calibration: raw arm B on the primary group, top decile 5.80% predicted against 6.04% observed; O/E 0.95,
 slope 1.07. Out-of-fold: arm B's fold models under-predict the training rows by 12% (O/E 1.119, mean
 prediction 1.26% against 1.41%), Platt intercept 0.217, slope 1.027, and the step again over-corrects the
-primary group (O/E 0.854); arm A's out-of-fold O/E is 1.009 and its Platt step is nearly the identity
+primary group (O/E 0.852); arm A's out-of-fold O/E is 1.009 and its Platt step is nearly the identity
 (intercept 0.040). The verdict stands: raw arm B is the primary model, the recalibration a negative result.
-On the shift group the drift sits in the ninth and tenth deciles (1.42% predicted against 2.08% observed,
-5.01% against 5.67%).
+On the shift group the drift sits in the ninth and tenth deciles (1.42% predicted against 2.19% observed,
+5.07% against 5.61%).
 
-Operating points, arm B, < 54, primary group: the riskiest 5% of rows catch 38% of events (87 of 226) at a
-PPV of 0.080, one event per 12 alerts; 10% catch 58% (130) at 0.060, one per 17; 20% catch 73% (166) at
-0.038, one per 26. Shift group 36 / 53 / 73%. For > 300: 34 / 53 / 75% at PPV 0.66 / 0.51 / 0.37. Decision
-curve, per 100 ICU days against acting on everyone: 0.76 against 0.54 at 0.5% (44% flagged), 0.60 against
-0.04 at 1% (24%), 0.44 against -0.98 at 2% (12%), 0.16 against -4.17 at 5% (3.7%), 0.03 at 10% (1.3%);
+Operating points, arm B, < 54, primary group: the riskiest 5% of rows catch 38% of events (86 of 226) at a
+PPV of 0.079, one event per 13 alerts; 10% catch 58% (131) at 0.060, one per 17; 20% catch 75% (170) at
+0.039, one per 26. Shift group 35 / 53 / 73%. For > 300: 34 / 53 / 75% at PPV 0.65 / 0.51 / 0.37. Decision
+curve, per 100 ICU days against acting on everyone: 0.76 against 0.54 at 0.5% (44% flagged), 0.59 against
+0.04 at 1% (24%), 0.43 against -0.98 at 2% (12%), 0.15 against -4.17 at 5% (3.8%), 0.03 at 10% (1.3%);
 above acting on everyone and on no one at every threshold from 0.5 to 10%.
 
-Subgroups (arm B, < 54): rows with an infusion running at the landmark, AUROC 0.729 (37 events, 2.0% event
-rate) on the primary group and 0.726 (38 events, 2.6%) on the shift group; without one, 0.873 and 0.858;
-arm A 0.645 / 0.718 and 0.856 / 0.832. The drip subgroup moved from 0.687 to 0.729 on the primary group and
+Subgroups (arm B, < 54): rows with an infusion running at the landmark, AUROC 0.727 (37 events, 2.0% event
+rate) on the primary group and 0.726 (38 events, 2.6%) on the shift group; without one, 0.875 and 0.858;
+arm A 0.645 / 0.718 and 0.856 / 0.832. The drip subgroup moved from 0.687 to 0.727 on the primary group and
 from 0.776 to 0.726 on the shift group between .20 and .22, with 37 and 38 events: that is the size of the
 noise in a 37-event cell, and the verdict (weakest where the alert matters) is the same. Units on the
-primary group: CVICU 0.833 (62 events), MICU 0.823 (60), MICU/SICU 0.848 (40), TSICU 0.920 (17), SICU 0.901
-(11), CCU 0.833 (19). The shift group by record (rows, events, AUROC, O/E): no drip in the look-back 14,554 /
-132 / 0.854 / 1.04; drip on the flowsheet 1,427 / 29 / 0.791 / 1.34; drip known from the eMAR alone 1,830 /
-29 / 0.837 / 1.34; infusion running at t_k 1,435 / 38 / 0.726 / 1.51. The primary group by record: no drip
-16,866 / 162 / 0.882 / 1.00; flowsheet 4,569 / 56 / 0.789 / 0.79; eMAR only 262 rows, suppressed. ICU day on
-the primary group: day 2 0.846 (51 events), days 3 to 4 0.883 (51), days 5 to 8 0.869 (52), day 9 and later
-0.855 (72). Race groups on the primary group: WHITE 0.864 (127 events), UNKNOWN 0.847 (47), BLACK 0.882
-(23), HISPANIC/LATINO 0.792 (12), ASIAN and OTHER suppressed; no supportable gap at these counts. 228
+primary group: CVICU 0.837 (62 events), MICU 0.823 (60), MICU/SICU 0.854 (40), TSICU 0.915 (17), SICU 0.900
+(11), CCU 0.834 (19). The shift group by record (rows, events, AUROC, O/E): no drip in the look-back 14,555 /
+132 / 0.852 / 1.03; drip on the flowsheet 1,427 / 29 / 0.793 / 1.36; drip known from the eMAR alone 1,829 /
+29 / 0.833 / 1.35; infusion running at t_k 1,435 / 38 / 0.726 / 1.53. The primary group by record: no drip
+16,866 / 162 / 0.883 / 1.00; flowsheet 4,569 / 56 / 0.790 / 0.79; eMAR only 262 rows, suppressed. ICU day on
+the primary group: day 2 0.847 (51 events), days 3 to 4 0.882 (51), days 5 to 8 0.874 (52), day 9 and later
+0.856 (72). Race groups on the primary group: WHITE 0.866 (127 events), UNKNOWN 0.847 (47), BLACK 0.888
+(23), HISPANIC/LATINO 0.791 (12), ASIAN and OTHER suppressed; no supportable gap at these counts. 228
 cells, 24 suppressed; the reported < 54 cells of arm B hold a median of 45 events (quartiles 23 and 74, the
 smallest 11).
 
-Sensitivities (arm B, < 54, primary / shift): main 0.863 / 0.852; training on 2011 to 2016 only 0.853 /
-0.839; measured rows only 0.862 / 0.851; windows of 6 h or more 0.859 / 0.849 (224 and 188 events);
+Sensitivities (arm B, < 54, primary / shift): main 0.864 / 0.851; training on 2011 to 2016 only 0.853 /
+0.839; measured rows only 0.863 / 0.850; windows of 6 h or more 0.861 / 0.848 (224 and 188 events);
 anchor-year admissions only 0.871 (16,859 rows, 152 events) / 0.866 (16,485 rows, 163 events); arm B
-refitted on the repeat-excluded endpoint and scored against it 0.860 / 0.849 (218 and 186 events). The two
+refitted on the repeat-excluded endpoint and scored against it 0.860 / 0.850 (218 and 186 events). The two
 labels give the same model to within the interval, which is what the endpoint change had to show.
 
 Importance: arm B's mean |SHAP| ranks the 24 h minimum glucose first (0.31), then the stay minimum (0.22),
-weight (0.14), bolus units (0.13), the stay maximum (0.13), glucose SD (0.11), basal units (0.09), the last
-glucose (0.07), the drip rate at t_k (0.07), creatinine (0.07). Arm A's largest standardised coefficients:
+weight (0.14), bolus units (0.13), the stay maximum (0.13), glucose SD (0.11), basal units (0.09), the drip
+rate at t_k (0.07), the last glucose (0.07), creatinine (0.07). Arm A's largest standardised coefficients:
 24 h minimum glucose -0.35, weight -0.28, prior diabetes +0.26, last glucose -0.24, basal units +0.24, bolus
 units +0.24, no drip rate recorded -0.20, lows earlier in the stay +0.19, the stay minimum -0.19, eMAR
 administrations in 24 h -0.18, doses from the flowsheet -0.18, infusion running +0.17, lactate +0.17, prior
 hypoglycemia diagnosis +0.16, drip rate at t_k +0.16, hours since the drip stopped -0.16. Ventilation and
 the feeds, which sat among arm A's largest coefficients in .20 (+0.23 and -0.26), are not in the top 20 of
 .22: the availability rule withheld their records.
+
+### The first run of the same release, as the reproduction: what reproduces
+
+The first .22 run (20:56 to 21:30, from the Drive zip of the code, on another Colab machine) against the
+evidence run: table 1 identical except `rows_with_drip_24h` of the shift group, 3,257 against 3,256; tables 7,
+12 to 19 and 21 identical; the p90 and p99 columns of table 20 differ by a few minutes (`APPROX_QUANTILES`);
+`02_features_check03` has one row moved between the drip and no-drip profiles (10,837 / 116,432 against
+10,836 / 116,433); `model_splits` and the `eda_*` tables identical. Arm A: C = 0.01 and 0.03 in both, AUROC
+identical to four decimals (0.8362 / 0.8260 / 0.8801 / 0.8684), cross-validated log losses equal to nine
+decimals. Arm B: the same early-stopping round in every < 54 fold (153 trees in both) but not in the > 300
+folds (712, 294, 409, 368, 229 against 639, 373, 409, 309, 325; 402 against 411 trees), fold log losses for
+< 54 equal to seven decimals; AUROC 0.8627 / 0.8516 against 0.8641 / 0.8506 for < 54 and 0.8919 / 0.8799
+against 0.8924 / 0.8797 for > 300; calibration intercepts moved by up to 0.035, slopes by up to 0.008, the
+sensitivities by up to 0.007, the SHAP ranking by up to 0.005 (the drip rate and the last glucose swap
+places at 0.07). Every difference sits far inside the bootstrap intervals.
+
+So "arm B to the last digit" held on a shuffled copy of the same rows on one machine and does not hold across
+runs of the SQL: one landmark row of 127,269 comes out differently, and one row is enough to move a tree
+ensemble in the third decimal and the > 300 early-stopping rounds. The likeliest source, from reading the SQL
+rather than the data: in the eMAR interval views (`emar_insulin_infusions`, `emar_drips_at_landmark`) the
+next session's start is looked up with `LEAD(start_time) OVER (PARTITION BY ... ORDER BY start_time)`, and
+two sessions that open in the same minute (a Confirmed that reopens after a Stopped and a Started charted at
+the same minute) tie on `start_time`, which BigQuery orders arbitrarily; whichever session the LEAD sees
+first ends at the other's start and is dropped, and the survivor's end can differ. The fix for the next
+release is `ORDER BY start_time, session_id` in both views (the synthetic database has no such tie, so the
+test harness did not catch it); until a rerun confirms it, the finding is stated as measured: one row, the
+third decimal, and the > 300 tree count.
 
 ## What is still open
 
@@ -896,6 +927,8 @@ the feeds, which sat among arm A's largest coefficients in .20 (+0.23 and -0.26)
 - The 2020 to 2022 under-prediction by 12%: a recalibration on the shifted era itself would fix the
   level but is not available before deployment; the honest deck statement is that a model trained on
   flowsheet-complete years needs its intercept re-checked after a charting change.
+- The one-row residue of order-dependence in the SQL (the section above): `ORDER BY start_time, session_id` on
+  the two LEAD windows of the eMAR interval views, and a planted tie in the synthetic database to catch it.
 - For the next release, in this order: ventilation from the hourly ventilator settings in chartevents (a new
   extract, 2.78 GiB more of the sandbox's storage on a project that already holds one); the dialysis tail
   lengthened from one hour to the island gap; the notebook emptying the check tables from the Drive folder

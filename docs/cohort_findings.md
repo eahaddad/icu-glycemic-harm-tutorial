@@ -214,6 +214,7 @@ After the second review (release .22, 12 October 2026; `docs/model_findings.md` 
 
 What the .22 run then showed is above ("The release .22 run"); what stays open for the next release: the ventilation
 feature from the hourly ventilator settings in chartevents (a new extract), the dialysis tail at the island gap,
-the Drive results folder emptied of check tables before a run copies its own in (the .22 zip carried the .20
-run's `check15` to `check34` next to `table01` to `table21`), and the runner's timing printout kept in the
-results folder.
+the Drive results folder emptied of check tables before a run copies its own in (the first .22 zip carried the
+.20 run's `check15` to `check34` next to `table01` to `table21`), the runner's timing printout kept in the
+results folder, and the one landmark row of the shift group that two runs of the SQL place differently
+(`rows_with_drip_24h` 3,256 in the evidence run, 3,257 in the first; `docs/model_findings.md` has the likely tie).
