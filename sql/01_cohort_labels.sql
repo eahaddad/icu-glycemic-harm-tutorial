@@ -43,9 +43,10 @@
 --                       sources, with the availability rule applied (which
 --                       segments the landmark could see, whether their end was
 --                       known, the end it can use); 01 and 02 both read it
---    sc_doses           subcutaneous / bolus doses from both sources, counted
---                       once (eMAR first, inputevents when eMAR has nothing
---                       within SOURCE_MATCH_MINUTES), with storetime
+--    sc_doses           subcutaneous / bolus doses from both sources, with
+--                       storetime; an inputevents bolus carries the moment its
+--                       eMAR twin (within SOURCE_MATCH_MINUTES) becomes visible,
+--                       and a landmark counts the bolus until then (release .23)
 --    icu_nutrition      enteral, parenteral, dextrose fluid and dextrose 50%
 --                       segments from inputevents
 --    icu_rrt            dialysis intervals: procedureevents intervals and
@@ -431,7 +432,7 @@ agg AS (
 ),
 closed AS (
   SELECT a.*,
-         LEAD(a.start_time) OVER (PARTITION BY a.hadm_id ORDER BY a.start_time) AS next_start,
+         LEAD(a.start_time) OVER (PARTITION BY a.hadm_id ORDER BY a.start_time, a.session_id) AS next_start,   -- release .23: two sessions opening in the same minute tied, and BigQuery ordered the tie as it pleased
          (SELECT infusion_cap_hours FROM `YOUR_PROJECT.hypo_tutorial.params`)   AS cap_hours
   FROM agg AS a
   WHERE a.start_time IS NOT NULL                       -- a session that is only a Stopped has no start evidence
@@ -658,7 +659,7 @@ agg AS (
 ),
 closed AS (
   SELECT a.*,
-         LEAD(a.start_time) OVER (PARTITION BY a.stay_id, a.k ORDER BY a.start_time) AS next_start,
+         LEAD(a.start_time) OVER (PARTITION BY a.stay_id, a.k ORDER BY a.start_time, a.session_id) AS next_start,   -- release .23: the same tiebreak
          (SELECT infusion_cap_hours FROM `YOUR_PROJECT.hypo_tutorial.params`)        AS cap_hours
   FROM agg AS a
   WHERE a.start_time IS NOT NULL                       -- a session that is only a Stopped has no start evidence
@@ -751,18 +752,25 @@ ie_boluses AS (
 p AS (
   SELECT source_match_minutes FROM `YOUR_PROJECT.hypo_tutorial.params`
 ),
-ie_unmatched AS (
-  SELECT i.* EXCEPT (source_match_minutes)
+ie_matched AS (
+  -- release .23: an inputevents bolus is no longer dropped here when an eMAR insulin dose sits within
+  -- SOURCE_MATCH_MINUTES of it (the second review's reading of release .22 found that a dose charted
+  -- in both sources was dropped at a landmark where its eMAR twin had not yet been entered). Every
+  -- bolus is kept, with the moment from which its earliest matching eMAR dose is visible (the later
+  -- of that dose's charttime and storetime); a consumer that works at a landmark suppresses the
+  -- bolus only when emar_match_visible_from < t_k, and a consumer with no landmark (the CMS816
+  -- numerator, table 5) only when a match exists at all
+  SELECT i.hadm_id, i.charttime, i.storetime, i.drug_class, i.insulin_kind, i.dose_units, i.insulin_iv, i.source,
+         (SELECT MIN(GREATEST(e.charttime, e.storetime))
+          FROM emar_doses AS e
+          WHERE e.hadm_id = i.hadm_id
+            AND e.drug_class = 'insulin'
+            AND ABS(DATETIME_DIFF(e.charttime, i.charttime, MINUTE)) <= i.source_match_minutes) AS emar_match_visible_from
   FROM (SELECT b.*, p.source_match_minutes FROM ie_boluses AS b CROSS JOIN p) AS i
-  LEFT JOIN emar_doses AS e
-    ON e.hadm_id = i.hadm_id
-   AND e.drug_class = 'insulin'
-   AND ABS(DATETIME_DIFF(e.charttime, i.charttime, MINUTE)) <= i.source_match_minutes
-  WHERE e.hadm_id IS NULL
 )
-SELECT * FROM emar_doses
+SELECT *, CAST(NULL AS DATETIME) AS emar_match_visible_from FROM emar_doses
 UNION ALL
-SELECT * FROM ie_unmatched;
+SELECT * FROM ie_matched;
 
 
 -- ---------------------------------------------------------------------
@@ -1208,6 +1216,7 @@ exposure AS (
    AND d.charttime >= DATETIME_SUB(l.t_k, INTERVAL 24 HOUR)
    AND d.charttime <  l.t_k
    AND d.storetime <  l.t_k
+   AND (d.emar_match_visible_from IS NULL OR d.emar_match_visible_from >= l.t_k)   -- the eMAR twin, once visible, replaces the flowsheet bolus
   UNION ALL
   SELECT x.stay_id, x.k, x.t_k, 'insulin', x.source, TRUE, x.running_at_tk, x.seg_end_at_tk
   FROM `YOUR_PROJECT.hypo_tutorial.drips_at_landmark` AS x
@@ -1268,7 +1277,7 @@ events_in_window AS (
 cms_agents AS (
   -- every hypoglycemic-agent record of the admission at its clinical times, for the CMS816
   -- numerator (an outcome definition: no availability rule, no flowsheet-first rule)
-  SELECT hadm_id, charttime AS expo_start, charttime AS expo_end FROM `YOUR_PROJECT.hypo_tutorial.sc_doses`
+  SELECT hadm_id, charttime AS expo_start, charttime AS expo_end FROM `YOUR_PROJECT.hypo_tutorial.sc_doses` WHERE emar_match_visible_from IS NULL
   UNION ALL
   SELECT hadm_id, starttime, endtime FROM `YOUR_PROJECT.hypo_tutorial.icu_insulin` WHERE is_drip
   UNION ALL
@@ -1437,6 +1446,7 @@ SELECT
   APPROX_QUANTILES(dose_units, 100)[OFFSET(50)]                AS median_units,
   ROUND(100 * COUNTIF(insulin_iv) / COUNT(*), 1)               AS pct_iv_push_protocol
 FROM `YOUR_PROJECT.hypo_tutorial.sc_doses`
+WHERE emar_match_visible_from IS NULL                             -- the static de-duplication: a bolus with an eMAR twin is counted once
 GROUP BY source, drug_class
 ORDER BY source, doses DESC, drug_class;
 

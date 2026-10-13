@@ -23,7 +23,8 @@ rebuilds each landmark's prefix from it.
 Expected output when the SQL files run on it (tests/run_pipeline.py --results-dir out/):
   01 table 1 (split from the two era DECLAREs: 2017 - 2019 'test', 2020 - 2022 'test_shifted', the rest 'train'):
               train        1 row  (patient 3, 2014 - 2016) / 1 pos<54 / 1 pos<54 excluded / 0 / 0 / 0 pos>300 / 1 row with a drip
-                           (the eMAR start closed by the 16 h cap), 0 running / 1 short window (death at 14 h)
+                           (the eMAR start closed by the 16 h cap, and the 08:00 to 10:00 interval from the duplicated
+                           Started pair), 0 running / 1 short window (death at 14 h)
               test         4 rows (patient 1; patient 5's late-entered glargine adds none) / 3 pos<54 (the contradicted 35 and 50
                            count in the primary label) / 2 excluded / 2 pos<40 / 1 CMS816 / 1 pos>300 (the 320 the old repeat
                            rule cancelled stands) / 0 short windows; 3 rows with a drip in the last 24 h (k=1 the first evening's
@@ -32,23 +33,31 @@ Expected output when the SQL files run on it (tests/run_pipeline.py --results-di
               test_shifted 4 rows (patients 2 and 6) / 1 pos<54 / 1 / 0 / 0 / 1 pos>300 / 1 short window;
                            3 rows with a drip in the last 24 h, 2 running at t_k (patient 6: the eMAR-only interval at the
                            first stay's landmark, the rate-less flowsheet segment crossing the second stay's)
-  01 table 15: 2014 - 2016 one eMAR interval closed by the cap at 16 h; 2020 - 2022 two intervals, one closed by the cap
+  01 table 15: 2014 - 2016 two eMAR intervals, one closed by the cap at 16 h and one by Stopped (the duplicated Started
+              pair: the session the tiebreak keeps, 2 h); 2020 - 2022 two intervals, one closed by the cap
               (patient 2: its Stopped is charted 19 h after the last confirmation) and one by Stopped (patient 6, 12.9 h);
               1 row running on the eMAR alone, 0 rows with an eMAR interval open but declined
   01 table 18: band < 40: 2 results, 1 flagged; band 40 - 53: 9 results, 4 flagged (two on patient 1, the 300 s and the 81
               boundary cases on patient 5), 3 of them with the contradicting result entered after the low; nothing at or above 54
+  01 table 5: inputevents insulin 2 doses after the static de-duplication (the 09:30 bolus of 03-03 has an eMAR twin and is
+              counted once there; the per-landmark rule in the cohort and the features keeps it while the twin is unentered)
   01 table 21: 1 of 2 drip segments running at t_k by clinical time was entered after t_k; 2 of 8 in the look-back;
-              1 of 7 eMAR infusion events; 1 of 2 rate changes in the look-back written after t_k
+              0 of 4 inputevents boluses; 1 of 18 eMAR doses (the 09:30 twin, entered 10:30); 1 of 10 eMAR infusion events;
+              1 of 2 rate changes in the look-back written after t_k
   02: rows_violating_leakage_rule 0, distinct_keys = rows_total = 9; Table 1b: glucose stream 2 results stored before their
       charttime (the 160 charted 10:05 and entered 09:58 around t_1; the 100 charted 10:02 and entered 09:58 around t_4),
       2 straddling landmark rows; lab panel 0. Profile: max_bolus_units_24h 12 (the 155,911,922,996-unit dose is capped
-      away), max_drip_rate 4 among rows with no drip running and 3 among rows with one (the Rewritten row at 99 units/h
+      away; mean 6.8 and 2.7 by drip status), max_drip_rate 4 among rows with no drip running and 3 among rows with one (the Rewritten row at 99 units/h
       and the Bolus-status row at 60 units/h are not segments; the rate-less Continuous IV row crossing its landmark has
       no rate at t_k), pct_running_with_rate_known 33.3 (one of the three running rows, patient 1 k=2 at 3 units/h)
   features, the planted rows (tests/prefix_invariance.py compares every input of every landmark against its prefix):
-      patient 1 k=2: drip_running_at_tk 1, drip_rate_at_tk 3, drip_hours_24h 4.0, drip_units_24h 12; k=3: drip_hours_24h 1.0,
+      patient 1 k=2: drip_running_at_tk 1, drip_rate_at_tk 3, drip_hours_24h 4.0, drip_units_24h 12, insulin_bolus_units_24h 8
+      (4 from the eMAR at 08:00, 4 from the flowsheet bolus at 09:30 whose eMAR twin is entered after t_2),
+      n_sc_from_inputevents_24h 1, n_insulin_sc_24h 3; k=3: drip_hours_24h 1.0,
       hrs_since_drip_stop 23; k=4: glucose_last 50 (the repeat charted after t_4 is not a feature), glucose_min_24h 35
-      patient 3 k=1: drip_hours_24h 16.0, hrs_since_drip_stop 6, nothing running
+      patient 3 k=1: drip_hours_24h 18.0 (16 to the cap, 2 from the 08:00 to 10:00 interval), hrs_since_drip_stop 2, nothing
+      running (without the next-start tiebreak the other session of the pair could survive instead, with no Stopped, and run
+      to its cap through t_1: that is the planted tie)
       patient 6 first stay: stay_has_inputevents_drip false (its first segment was entered after t_1), drip_running_emar_at_tk 1,
       drip_hours_24h 13.0; second stay: drip_running_at_tk 1, drip_hours_24h 20.0, drip_rate_at_tk NULL, drip_units_24h NULL,
       rrt_at_tk 1 (CRRT chartings entered before t_1), rrt_hours_24h 8.0
@@ -165,6 +174,12 @@ for day in range(1, 8):
 give(1001, 10002, "2150-03-04 03:30", "Dextrose 50%", "Administered", "25", "g", route="IV")
 # octreotide on the eMAR (drug_class 'octreotide' in 01): inside k=2's look-back (03-03 10:00), outside k=3's
 give(1001, 10002, "2150-03-03 08:00", "Octreotide Acetate", "Administered", "100", "mcg")
+# release .23, the second review's reading of .22: a dose charted in both sources, the flowsheet row entered at
+# once (09:32) and its eMAR twin entered at 10:30, after t_2 (03-03 10:00). At t_2 the chart held the flowsheet
+# bolus and not the eMAR dose, so the bolus counts (4 units from inputevents, n_sc_from_inputevents_24h 1); from
+# 10:30 on the eMAR dose replaces it. Release .22 dropped the bolus at every landmark because the twin existed.
+# 09:30 is 90 minutes from the 08:00 lispro, outside SOURCE_MATCH_MINUTES, so only the planted pair matches.
+give(1001, 10002, "2150-03-03 09:30", "Insulin Lispro", "Administered", "4", "UNIT", store="2150-03-03 10:30")
 # Patient 2 / hadm 20001 (ICU 05-10 16:00 to 05-13 10:00): the drip is in inputevents; eMAR records
 # its Started / Stopped (concordance), an IV push for hyperkalemia before the ICU, levofloxacin,
 # and one lispro dose that inputevents also charts 10 minutes later (must count once)
@@ -190,6 +205,15 @@ give(1003, 30001, "2155-07-02 12:00", "GlipiZIDE", "Administered", "5", "mg", ro
 # had it been visible, could only have shortened the interval (LEAST of the stop and the cap): it never reopens it
 give(1003, 30001, "2155-07-01 14:00", "Insulin", "Started", None, None, route="IV DRIP", infusion_rate="2")
 give(1003, 30001, "2155-07-02 14:00", "Insulin", "Stopped", None, None, route="IV DRIP")
+# release .23: two Started events charted in the same minute (a duplicated administration row), then a Stopped two
+# hours later, all inside t_1's look-back (07-01 12:00 to 07-02 12:00). Each Started opens a session, so two sessions
+# share the start time 08:00; the next-start lookup orders them by start time AND session id, so the first ends at
+# the second's start and is dropped, and the survivor runs 08:00 to 10:00 (stopped 2 h before t_1, not running).
+# Without the tiebreak BigQuery could keep either, and the other survivor would have no Stopped and run to its cap
+# (00:00 the next day), making t_1 a running-drip row: the one-row difference between the two .22 runs.
+give(1003, 30001, "2155-07-02 08:00", "Insulin", "Started", None, None, route="IV DRIP", infusion_rate="2")
+give(1003, 30001, "2155-07-02 08:00", "Insulin", "Started", None, None, route="IV DRIP", infusion_rate="2")
+give(1003, 30001, "2155-07-02 10:00", "Insulin", "Stopped", None, None, route="IV DRIP")
 # Patient 4 (excluded era) and patient 5 / 50002 (no hypoglycemic agent)
 give(1004, 40001, "2130-04-02 08:00", "Insulin Glargine", "Administered", "10", "UNIT")
 give(1005, 50002, "2158-09-03 09:00", "Metoprolol Tartrate", "Administered", "25", "mg", route="PO")
@@ -295,6 +319,8 @@ infuse(1001, 10002, 200011, "2150-03-01 12:00", "2150-03-01 18:00", 223258, amou
 # tests/prefix_invariance.py rebuilds t_2's prefix with the second segment absent and the first segment open
 infuse(1001, 10002, 200011, "2150-03-03 06:00", "2150-03-03 09:00", 223258, amount=9, amountuom="units", rate=3, rateuom="units/hour", status="ChangeDose/Rate", orderid=4002)
 infuse(1001, 10002, 200011, "2150-03-03 09:00", "2150-03-03 11:00", 223258, amount=2, amountuom="units", rate=1, rateuom="units/hour", status="Stopped", orderid=4002, store="2150-03-03 10:30")
+# release .23: the flowsheet half of the two-source dose above (a subcutaneous bolus row: no rate, not continuous)
+infuse(1001, 10002, 200011, "2150-03-03 09:30", "2150-03-03 09:30", 223262, amount=4, amountuom="units", category="Medications", orderid=4003)
 # Patient 2: the drip, two segments (rate 4 then 2), plus a Rewritten row at 99 units/h that must be ignored
 infuse(1002, 20001, 200010, "2160-05-10 18:00", "2160-05-11 02:00", 223258, amount=32, amountuom="units", rate=4, rateuom="units/hour", status="ChangeDose/Rate", orderid=5001)
 # a bolus given from the drip: Bolus status, rate 60 units/h over 30 min, amount 3 units -> a 3-unit bolus, never a 60 units/h segment
@@ -612,10 +638,17 @@ hosp = dict(patients=patients, admissions=admissions, emar=emar, emar_detail=ema
             d_labitems=d_labitems, diagnoses_icd=diagnoses_icd, d_icd_diagnoses=d_icd_diagnoses, transfers=transfers,
             services=services, omr=omr, microbiologyevents=microbiologyevents)
 icu = dict(icustays=icustays, d_items=d_items, chartevents=chartevents, inputevents=inputevents, procedureevents=procedureevents)
+def _us(df):
+    # release .23: pandas 2.x hands DuckDB nanosecond datetimes, which become TIMESTAMP_NS columns and then refuse to
+    # COALESCE with the transpiled DATETIME sentinels; microseconds become plain TIMESTAMP on every pandas version
+    for c in df.columns:
+        if str(df[c].dtype).startswith("datetime64"):
+            df[c] = df[c].astype("datetime64[us]")
+    return df
 for name, df in hosp.items():
-    con.register("df_", df); con.execute(f"CREATE TABLE mimiciv_3_1_hosp.{name} AS SELECT * FROM df_"); con.unregister("df_")
+    con.register("df_", _us(df)); con.execute(f"CREATE TABLE mimiciv_3_1_hosp.{name} AS SELECT * FROM df_"); con.unregister("df_")
 for name, df in icu.items():
-    con.register("df_", df); con.execute(f"CREATE TABLE mimiciv_3_1_icu.{name} AS SELECT * FROM df_"); con.unregister("df_")
+    con.register("df_", _us(df)); con.execute(f"CREATE TABLE mimiciv_3_1_icu.{name} AS SELECT * FROM df_"); con.unregister("df_")
 for sch, tabs in (("mimiciv_3_1_hosp", hosp), ("mimiciv_3_1_icu", icu)):
     for name in tabs:
         n = con.execute(f"SELECT COUNT(*) FROM {sch}.{name}").fetchone()[0]

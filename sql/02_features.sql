@@ -257,6 +257,7 @@ sc_feat AS (
    AND d.charttime >= DATETIME_SUB(l.t_k, INTERVAL 24 HOUR)
    AND d.charttime <  l.t_k
    AND d.storetime <  l.t_k            -- entered before the landmark (the both-times rule)
+   AND (d.emar_match_visible_from IS NULL OR d.emar_match_visible_from >= l.t_k)   -- a flowsheet bolus is replaced by its eMAR twin only once the twin is visible (release .23)
   GROUP BY l.stay_id, l.k
 ),
 
@@ -397,7 +398,7 @@ su_stay AS (
   FROM lm AS l
   JOIN `YOUR_PROJECT.hypo_tutorial.sc_doses` AS d
     ON d.hadm_id = l.hadm_id AND d.drug_class = 'sulfonylurea' AND d.charttime < l.t_k AND d.storetime < l.t_k
-  GROUP BY l.stay_id, l.k
+  GROUP BY l.stay_id, l.k   -- sulfonylureas come from the eMAR only, so no flowsheet twin applies
 ),
 
 -- ---------------------------------------------------------------------

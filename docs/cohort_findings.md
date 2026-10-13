@@ -218,3 +218,15 @@ the Drive results folder emptied of check tables before a run copies its own in 
 .20 run's `check15` to `check34` next to `table01` to `table21`), the runner's timing printout kept in the
 results folder, and the one landmark row of the shift group that two runs of the SQL place differently
 (`rows_with_drip_24h` 3,256 in the evidence run, 3,257 in the first; `docs/model_findings.md` has the likely tie).
+
+After the third review (release .23, 13 October 2026; `docs/model_findings.md`, "The third review"):
+
+- `01_cohort_labels.sql`: `sc_doses` keeps every inputevents bolus and carries `emar_match_visible_from`; the exposure
+  suppresses a bolus only once its eMAR twin is visible at the landmark; the CMS816 numerator and table 5 keep the
+  static rule; the next-start lookup of both eMAR interval views orders ties by session id.
+- `02_features.sql`: `sc_feat` applies the same per-landmark suppression.
+- `notebooks/hypo_harm_tutorial.ipynb`: release .23; the Drive results folder is cleared of check tables before a
+  run's are copied in; a sixth sensitivity refits arm B without the drip inputs.
+- `tests/`: the two planted cases (the two-source dose with a late eMAR entry; the same-minute Started pair), the
+  fixture's microsecond datetimes, the removed DATETIME rewrite in `run_pipeline.py`, failures replayed by
+  `prefix_invariance.py`.

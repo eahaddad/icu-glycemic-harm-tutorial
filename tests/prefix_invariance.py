@@ -1,3 +1,4 @@
+import sys
 """
 Prefix invariance of the pipeline on the synthetic database (the second review of 12 October 2026):
 adding records that were not available at a landmark must leave that landmark's eligibility and
@@ -31,9 +32,16 @@ WORK = HERE / "prefix_work"
 def run_pipeline(db_path):
     con = duckdb.connect(str(db_path))
     con.execute("DROP SCHEMA IF EXISTS hypo_tutorial CASCADE")
-    with contextlib.redirect_stdout(io.StringIO()):
-        for f in FILES:
-            run_file(con, f)
+    # the pipeline's own printout is kept quiet, but a statement that fails must be seen: run_file exits the process
+    # on a failure, so its captured output is replayed first (release .23; the second review's run died silently)
+    buf = io.StringIO()
+    try:
+        with contextlib.redirect_stdout(buf):
+            for f in FILES:
+                run_file(con, f)
+    except SystemExit:
+        sys.stdout.write(buf.getvalue()[-4000:])
+        raise SystemExit(f"the pipeline failed on {db_path}; the last statement and its error are above")
     grid = con.execute("SELECT stay_id, k, t_k FROM hypo_tutorial.landmark_grid ORDER BY stay_id, k").fetchdf()
     feat = con.execute("SELECT * FROM hypo_tutorial.features ORDER BY stay_id, k").fetchdf()
     con.close()

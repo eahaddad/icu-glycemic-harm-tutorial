@@ -913,6 +913,61 @@ release is `ORDER BY start_time, session_id` in both views (the synthetic databa
 test harness did not catch it); until a rerun confirms it, the finding is stated as measured: one row, the
 third decimal, and the > 300 tree count.
 
+## The third review (13 October 2026) and release .23: the two-source dose, the harness, the tie
+
+The reviewer read commit b492a60 (release .22 with the 23:32 evidence run) and the regenerated deck, confirmed
+the corrections of the second review and the agreement between the deck and the tables, and made four points.
+
+1. **Dose de-duplication read future eMAR records. Confirmed, corrected.** `sc_doses` dropped an inputevents
+   bolus whenever an eMAR insulin dose sat within `SOURCE_MATCH_MINUTES` of it, by clinical time alone and before
+   any landmark saw either record, so at a landmark where the eMAR twin had not yet been entered the row lost a
+   dose the chart held. The prefix test had not caught it because no planted dose was charted in both sources
+   with a late eMAR entry. Release .23 keeps every bolus in `sc_doses` with `emar_match_visible_from` (the later of
+   the earliest matching eMAR dose's charttime and storetime); the exposure in `01` and `sc_feat` in `02` suppress
+   the bolus only when that moment precedes t_k, and the two consumers without a landmark (the CMS816 numerator,
+   table 5) suppress it whenever a match exists, as before. The planted case (patient 1, k = 2: a flowsheet bolus
+   at 09:30 entered at once, its eMAR twin at 09:30 entered 10:30, landmark 10:00) fails on the .22 SQL in five
+   inputs (`n_hypo_admin_24h`, `n_doses_24h`, `n_insulin_sc_24h`, `n_sc_from_inputevents_24h`,
+   `insulin_bolus_units_24h`) and passes on .23. The size on the real data is bounded by table 21's eMAR doses
+   entered after their landmark (1,026 records, 931 rows, 0.53%) and only those with a flowsheet twin inside the
+   match window count, so a few hundred rows at most; the .23 rerun measures it.
+
+2. **The harness did not run in the reviewer's environment. Confirmed, corrected.** Two causes, both mine.
+   `requirements.txt` allows pandas 2.x, whose nanosecond datetimes become `TIMESTAMP_NS` columns in DuckDB
+   (this environment runs pandas 3, which gives plain `TIMESTAMP`); and `run_pipeline.py` rewrote the
+   `DATETIME '9999-12-31'` sentinels to `TIMESTAMP` literals, which sqlglot reads as BigQuery's zoned timestamp and
+   emits as `TIMESTAMPTZ`, and DuckDB refuses to COALESCE `TIMESTAMP_NS` with `TIMESTAMPTZ`. The fixture now writes
+   microsecond datetimes, the rewrite is removed (sqlglot maps `DATETIME` to `TIMESTAMP` on its own), and
+   `prefix_invariance.py` replays the failing statement and its error instead of exiting silently.
+
+3. **The availability guarantee needs qualification. Agreed.** The deck and the documents now say what the rule
+   does and what it assumes: predictors use the records that pass the stated availability rules; a missing
+   storetime falls back to the clinical time; an interval end that the data does not timestamp (Stopped, Paused,
+   FinishedRunning) is taken at its nominal time; cultures count at collection; the prefix test rebuilds a
+   landmark's prefix by removing records entered at or after it and reopening a segment whose rate change is not
+   yet written, and keeps the final fields of the surviving records. MIMIC-IV records an entry time and the final
+   state of each row, not a history of revisions, so no test on it can prove the EHR's exact state at a past moment.
+
+4. **Interpretations stated too strongly. Agreed, reworded.** "Almost every severe low is iatrogenic" becomes the
+   cohort definition (every row follows a hypoglycemic agent) rather than a finding. The reading of the drip
+   subgroup, that the headline is carried by separating drip from non-drip rows, is now measured instead of
+   inferred: the sixth sensitivity refits the preparation and arm B with every drip input removed and scores both
+   test groups, on all rows and on the drip rows. The flowsheet-gap explanation of the shift group's
+   under-prediction is stated as the plausible mechanism, not an established one. "The ranking never leaned on the
+   withheld records" becomes what was measured: the AUROC did not move under the rule, which a refit can achieve
+   through other predictors. The one-row difference between the two .22 runs gets its deterministic fix: the next
+   session's start in both eMAR interval views is looked up in the order of start time and session id, and the
+   fixture plants the tie (patient 3: two Started rows in the same minute, a Stopped two hours later, all in t_1's
+   look-back; the survivor runs 08:00 to 10:00 and the row is not running at t_1, where the other survivor would
+   have run to its cap through t_1).
+
+Also in .23: the notebook clears the check tables from the Drive results folder before copying a run's in, so a
+results zip can no longer carry an earlier release's tables.
+
+What the .23 rerun has to show: table 1 against the .22 evidence run (the dose rule can only add rows and doses;
+the tie can move single rows), the headline, the sixth sensitivity (arm B without the drip inputs, on all rows and
+on the drip rows), and whether a second .23 run reproduces table 1 to the row.
+
 ## What is still open
 
 - A clinician's reading of the deck's wording.
@@ -927,8 +982,6 @@ third decimal, and the > 300 tree count.
 - The 2020 to 2022 under-prediction by 12%: a recalibration on the shifted era itself would fix the
   level but is not available before deployment; the honest deck statement is that a model trained on
   flowsheet-complete years needs its intercept re-checked after a charting change.
-- The one-row residue of order-dependence in the SQL (the section above): `ORDER BY start_time, session_id` on
-  the two LEAD windows of the eMAR interval views, and a planted tie in the synthetic database to catch it.
 - For the next release, in this order: ventilation from the hourly ventilator settings in chartevents (a new
   extract, 2.78 GiB more of the sandbox's storage on a project that already holds one); the dialysis tail
   lengthened from one hour to the island gap; the notebook emptying the check tables from the Drive folder

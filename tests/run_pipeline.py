@@ -53,7 +53,9 @@ def rewrite_bigquery(text):
     text = re.sub(r"ARRAY_TO_STRING\(ARRAY\(\s*SELECT printf\('%\.2f', v\)\s*FROM UNNEST\(\[glucose_last, glucose_prev, glucose_prev2\]\) AS v WITH OFFSET AS pos\s*WHERE v IS NOT NULL\s*ORDER BY pos\s*\), ', '\)",
                   "array_to_string(list_transform(list_filter([glucose_last, glucose_prev, glucose_prev2], x -> x IS NOT NULL), x -> printf('%.2f', x)), ', ')", text)
     text = re.sub(r"CROSS JOIN UNNEST\(GENERATE_ARRAY\(1, (\d+)\)\) AS k", lambda m: f"CROSS JOIN (SELECT UNNEST(range(1, {int(m.group(1)) + 1})) AS k) AS _k", text)
-    text = re.sub(r"DATETIME '(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})'", r"TIMESTAMP '\1'", text)   # DATETIME literals (the 1900 floor, the 9999 ceiling)
+    # DATETIME literals (the 1900 floor, the 9999 ceiling) are left to sqlglot, which maps BigQuery DATETIME to a plain
+    # DuckDB TIMESTAMP; release .22 rewrote them to TIMESTAMP literals, which sqlglot reads as BigQuery's zoned TIMESTAMP
+    # and emits as TIMESTAMPTZ, and DuckDB refuses to COALESCE those with TIMESTAMP_NS columns (the second review's run)
     # BigQuery-only DDL and metadata used by 00b_extract.sql: clustering has no DuckDB equivalent,
     # and the __TABLES__ view becomes a duckdb_tables() lookup (sizes print as 0)
     text = re.sub(r"\nCLUSTER BY [^\n]+ AS\n", "\nAS\n", text)

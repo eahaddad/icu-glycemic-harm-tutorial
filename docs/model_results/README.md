@@ -1,5 +1,9 @@
 # The evidence run: release .22 of the notebook, 12 October 2026
 
+(Release .23 changed the two-source dose rule and the eMAR tiebreak; until its rerun replaces this folder, every
+number here, in the deck and in the documents is the .22 evidence run's, and `docs/model_findings.md`, "The third
+review", says what the .23 run has to show.)
+
 The `results/` folder as `notebooks/hypo_harm_tutorial.ipynb` wrote it in Colab on MIMIC-IV v3.1 on 12 October
 2026 (23:12 to 23:32), the notebook opened from this repository, the code cloned from it at its release commit, an
 empty Drive folder, `RUN_DATA_STAGE = auto` (so the cohort and feature SQL, the pull, the cohort stage and the models
